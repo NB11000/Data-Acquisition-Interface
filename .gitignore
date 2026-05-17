@@ -1,0 +1,37 @@
+# 依赖
+node_modules/
+
+# 构建输出
+build/
+dist/
+*.tsbuildinfo
+
+# 环境变量
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# IDE 和编辑器
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# 操作系统
+.DS_Store
+Thumbs.db
+*.log
+
+# 测试覆盖率
+coverage/
+
+# npm
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# 类型定义
+*.d.ts.map
