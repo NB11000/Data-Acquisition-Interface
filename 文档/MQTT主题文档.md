@@ -531,4 +531,4 @@ daq/+/events/state_changed      ← 跨设备统一监控
 > **维护说明**：新增 RPC 方法或事件类型时，同步更新本文档对应表格。事件类型常量定义于 `WebAPI/Models/StateChangeEvents.cs`，新增 eventType 后须同步更新该常量类与本文档 §2.3.1。
 
 
-该工作区准备编写一个前端页面，将使用react加ts，请先在当前工作区中初始化一个git仓库 
+
