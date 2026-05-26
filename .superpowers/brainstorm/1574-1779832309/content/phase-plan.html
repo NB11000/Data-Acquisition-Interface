@@ -1,0 +1,116 @@
+<h2>分阶段实现计划</h2>
+<p class="subtitle">每个阶段以可运行、可验证的里程碑结束</p>
+
+<div class="section">
+  <h3>Phase 1 — 项目骨架 + 布局</h3>
+  <div class="mockup">
+    <div class="mockup-body">
+      <p><strong>目标：</strong>Vite + React + TS 项目跑起来，布局框架可视</p>
+      <ul>
+        <li>Vite 初始化项目，安装 antd / uPlot / mqtt 依赖</li>
+        <li>CSS 变量体系 (浅色/深色两套)</li>
+        <li>AppLayout (100vh flex)、Navbar (48px)、Sidebar (250px)、ContentArea</li>
+        <li>ThemeSwitch 可切换 dark-theme</li>
+        <li>ChartGrid 2×2 占位卡片 (写死假数据确认布局)</li>
+        <li><strong>验证：</strong>浏览器打开，深浅色切换正常，无外层滚动条</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>Phase 2 — 数据层</h3>
+  <div class="mockup">
+    <div class="mockup-body">
+      <p><strong>目标：</strong>纯 TS 模块可独立运行，不依赖 React</p>
+      <ul>
+        <li>types/ — 所有 TS 类型定义 (SystemStateDto, CommandResult, MQTT 消息等)</li>
+        <li>mqtt/client.ts — MQTT 连接管理 (connect/disconnect/subscribe)</li>
+        <li>mqtt/rpc-manager.ts — RPC 请求/响应匹配 + 10s 超时</li>
+        <li>mqtt/topic-router.ts — 主题通配符路由</li>
+        <li>stores/ — waveform (RingBuffer), lowfreq, state, alarm</li>
+        <li>utils/ring-buffer.ts, binary-parser.ts</li>
+        <li><strong>验证：</strong>可在 Node/浏览器 console 中手动调用测试</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>Phase 3 — Hooks 适配层</h3>
+  <div class="mockup">
+    <div class="mockup-body">
+      <p><strong>目标：</strong>连接数据层和 UI 层</p>
+      <ul>
+        <li>useMqttConnection — 设备连接/断连/自动重连</li>
+        <li>useSystemState — 订阅 state-store → React state (含 computeButtonDisabled)</li>
+        <li>useLowFreqData — 订阅 lowfreq → 单个图表组件 state</li>
+        <li>useWaveformData — 返回 RingBuffer ref，不触发 render</li>
+        <li>useRpcCommand — 发送 RPC + transition state + 乐观更新</li>
+        <li>useResizeObserver — 图表容器尺寸</li>
+        <li><strong>验证：</strong>hook 单元测试，mock store 验证状态流转</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>Phase 4 — 侧边栏 + 设备管理</h3>
+  <div class="mockup">
+    <div class="mockup-body">
+      <p><strong>目标：</strong>设备列表可交互，选中设备触发连接</p>
+      <ul>
+        <li>DeviceCard (名称/ID/在线状态指示灯)</li>
+        <li>DeviceList (滚动容器，选中高亮)</li>
+        <li>AddDeviceButtons + AutoDiscoverModal + ManualAddModal</li>
+        <li>选中设备 → useMqttConnection → 订阅该设备所有主题</li>
+        <li><strong>验证：</strong>Modal 表单交互正常，设备选中切换流畅</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>Phase 5 — 状态控制栏 + 强乐观交互</h3>
+  <div class="mockup">
+    <div class="mockup-body">
+      <p><strong>目标：</strong>按钮可操作，强乐观 UI 闭环</p>
+      <ul>
+        <li>StatusControlBar + StatusIndicators + Clock</li>
+        <li>ControlButtons (采集组/激光组) + computeButtonDisabled 本地计算</li>
+        <li>RPC 命令发送 → 过渡态 → 乐观更新 → 纠偏</li>
+        <li>OfflineBanner (遗嘱触发 / MQTT 断连)</li>
+        <li><strong>验证：</strong>点击按钮 → 过渡态 → 终态 / 回退；10s 超时抖动</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>Phase 6 — 图表接入</h3>
+  <div class="mockup">
+    <div class="mockup-body">
+      <p><strong>目标：</strong>真实数据驱动图表渲染</p>
+      <ul>
+        <li>WaveformChart — uPlot 双Y轴，命令式更新 RingBuffer</li>
+        <li>VisChart + Cn2Chart — uPlot 时间序列折线</li>
+        <li>MultiParamCard — Empty 占位 (六要素暂不可用)</li>
+        <li>ResizeObserver 自适应高度</li>
+        <li>设备切换时清理上一设备数据</li>
+        <li><strong>验证：</strong>100ms 波形流畅滚动，无卡顿；7s 低频正常更新</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>依赖关系</h3>
+  <pre style="font-size:13px;line-height:1.6;color:var(--text-color, #ccc);background:transparent;margin:0">
+  Phase 1 (骨架) ──┐
+                   ├──▶ Phase 4 (侧边栏) ──▶ Phase 5 (控制栏) ──▶ Phase 6 (图表)
+  Phase 2 (数据层)─┤
+                   │
+  Phase 3 (hooks) ─┘
+  </pre>
+  <p style="margin-top:1rem;font-size:0.9rem;color:var(--subtitle-color,#888)">Phase 2 和 Phase 3 是基础设施，完成后 Phase 4/5/6 可以相对独立推进。</p>
+</div>

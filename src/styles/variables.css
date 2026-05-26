@@ -1,0 +1,55 @@
+/* 浅色主题 (默认) */
+:root {
+  --app-bg-color: #f0f2f5;
+  --app-nav-bg: #001529;
+  --app-nav-text: #ffffff;
+  --app-nav-active: #1890ff;
+  --app-sidebar-bg: #ffffff;
+  --app-sidebar-border: #e8e8e8;
+  --app-content-bg: #f0f2f5;
+  --app-card-bg: #ffffff;
+  --app-card-border: #e8e8e8;
+  --app-card-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  --app-text-primary: #262626;
+  --app-text-secondary: #8c8c8c;
+  --app-text-hint: #bfbfbf;
+  --app-control-bar-bg: #ffffff;
+  --app-control-bar-border: #e8e8e8;
+  --app-control-bar-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  --app-status-online: #52c41a;
+  --app-status-offline: #ff4d4f;
+  --app-status-warning: #faad14;
+  --app-banner-bg: #fff1f0;
+  --app-banner-border: #ffa39e;
+  --app-banner-text: #cf1322;
+  --app-scrollbar-thumb: #c1c1c1;
+  --app-scrollbar-track: #f0f0f0;
+}
+
+/* 深色主题 */
+body.dark-theme {
+  --app-bg-color: #141414;
+  --app-nav-bg: #0a0a0a;
+  --app-nav-text: #e0e0e0;
+  --app-nav-active: #177ddc;
+  --app-sidebar-bg: #1f1f1f;
+  --app-sidebar-border: #303030;
+  --app-content-bg: #141414;
+  --app-card-bg: #1f1f1f;
+  --app-card-border: #303030;
+  --app-card-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+  --app-text-primary: #e0e0e0;
+  --app-text-secondary: #8c8c8c;
+  --app-text-hint: #595959;
+  --app-control-bar-bg: #1f1f1f;
+  --app-control-bar-border: #303030;
+  --app-control-bar-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  --app-status-online: #49aa19;
+  --app-status-offline: #d32029;
+  --app-status-warning: #d89614;
+  --app-banner-bg: #2a1215;
+  --app-banner-border: #58181c;
+  --app-banner-text: #e84749;
+  --app-scrollbar-thumb: #434343;
+  --app-scrollbar-track: #262626;
+}

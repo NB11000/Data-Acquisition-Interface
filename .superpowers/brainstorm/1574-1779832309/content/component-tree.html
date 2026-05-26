@@ -1,0 +1,95 @@
+<h2>组件树和数据流</h2>
+<p class="subtitle">分层架构：数据层 (纯 TS) → 适配层 (hooks) → UI 层 (React)</p>
+
+<div class="mockup">
+  <div class="mockup-header">📐 整体组件树</div>
+  <div class="mockup-body">
+<pre style="font-size:13px;line-height:1.7;color:var(--text-color, #ccc);background:transparent;margin:0">
+AppLayout (100vh, flex column)
+├── Navbar (48px)
+│   ├── Logo + 标题
+│   ├── Menu Tabs (数据中心/告警/历史/设置/日志)
+│   └── ThemeSwitch + UserAvatar
+│
+├── Body (flex: 1, flex row)
+│   ├── Sidebar (250px)
+│   │   ├── SearchBox + 设备统计
+│   │   ├── DeviceList (可滚动)
+│   │   │   └── DeviceCard × N (名称/ID/在线状态)
+│   │   └── ActionButtons (自动发现/手动添加, 吸底)
+│   │
+│   └── ContentArea (flex: 1, flex column, overflow: hidden)
+│       ├── StatusControlBar (自适应高度)
+│       │   ├── DeviceInfo (名称/ID)
+│       │   ├── StatusIndicators (MQTT/采集/激光)
+│       │   ├── Clock (动态时间)
+│       │   └── ControlButtons (采集组/激光组)
+│       │
+│       ├── OfflineBanner (条件渲染, 红色横幅)
+│       │
+│       └── ChartGrid (flex: 1, 2×2)
+│           ├── WaveformChart (左上, 双通道, uPlot)
+│           ├── VisChart (右上, 能见度, uPlot)
+│           ├── MultiParamCard (左下, 六要素, Empty状态)
+│           └── Cn2Chart (右下, 折射率, uPlot)
+│
+└── Modals (Portal)
+    ├── AutoDiscoverModal
+    └── ManualAddModal
+</pre>
+  </div>
+</div>
+
+<div class="section">
+  <h3>数据流方向</h3>
+  <div class="mockup">
+    <div class="mockup-body">
+<pre style="font-size:13px;line-height:1.8;color:var(--text-color, #ccc);background:transparent;margin:0">
+┌─────────────┐     ┌──────────────┐     ┌─────────────┐
+│  MQTT Broker │ ──▶ │  mqttClient  │ ──▶ │ TopicRouter │
+│  (外部)      │     │  (单例 TS)   │     │ (消息分发)   │
+└─────────────┘     └──────────────┘     └──────┬──────┘
+                    connect/disconnect    ┌──────┼──────┐
+                    publish/subscribe     │      │      │
+                                          ▼      ▼      ▼
+                                    ┌────────┐┌──────┐┌──────┐
+                                    │Waveform││State ││Alarm │
+                                    │Store   ││Store ││Store │
+                                    │(RingBuf││(Obsrv││(Event│
+                                    │ TS)    ││ TS)  ││ TS)  │
+                                    └───┬────┘└──┬───┘└──┬───┘
+                                        │        │       │
+                          ┌─────────────┼────────┼───────┼──────┐
+                          │   React UI Layer                   │
+                          │                                    │
+                          │  uPlot (命令式)  useState/subscribe │
+                          │  热数据         温数据/冷数据       │
+                          │  >10 Hz         0.1-10 Hz          │
+                          └────────────────────────────────────┘
+</pre>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>关键设计决策</h3>
+  <div class="pros-cons">
+    <div class="pros">
+      <h4>性能保障</h4>
+      <ul>
+        <li>波形 100ms/帧 → uPlot 命令式 data.dataset[0] 直接更新，不触发 React render</li>
+        <li>低频 7s/帧 → Observable store → subscribe 到单个 Chart 组件</li>
+        <li>状态事件 → React state，无条件覆盖 UI</li>
+        <li>所有图表卡片: contain: layout style</li>
+      </ul>
+    </div>
+    <div class="cons">
+      <h4>需要注意</h4>
+      <ul>
+        <li>uPlot 需要 ResizeObserver 手动计算高度</li>
+        <li>Ring Buffer 需预分配 TypedArray 避免 GC</li>
+        <li>多设备切换需清理上一设备的订阅</li>
+      </ul>
+    </div>
+  </div>
+</div>

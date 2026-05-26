@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:deepwiki.com)",
+      "WebFetch(domain:vibe-eval.com)",
+      "Bash(bash \"C:\\\\Users\\\\86181\\\\.claude\\\\plugins\\\\cache\\\\superpowers-marketplace\\\\superpowers\\\\5.1.0\\\\skills\\\\brainstorming\\\\scripts\\\\start-server.sh\" --project-dir \"e:/新建文件夹 \\(2\\)/前端页面\")",
+      "Bash(npm create *)",
+      "Bash(npm init *)"
+    ],
+    "defaultMode": "bypassPermissions"
+  },
+  "enabledPlugins": {
+    "superpowers@superpowers-marketplace": true
+  }
+}

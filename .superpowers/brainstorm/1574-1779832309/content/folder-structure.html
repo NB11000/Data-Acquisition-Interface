@@ -1,0 +1,120 @@
+<h2>项目目录结构</h2>
+<p class="subtitle">按职责分层：数据层 / hooks / 组件，每层可独立理解和测试</p>
+
+<div class="mockup">
+  <div class="mockup-header">📁 src/ 目录规划</div>
+  <div class="mockup-body">
+<pre style="font-size:13px;line-height:1.7;color:var(--text-color, #ccc);background:transparent;margin:0">
+src/
+├── main.tsx                    # 入口
+├── App.tsx                     # 顶层路由/布局
+├── vite-env.d.ts
+│
+├── data/                       # 🔴 纯 TS 数据层 (不依赖 React)
+│   ├── mqtt/
+│   │   ├── client.ts           # MQTT 连接/重连/遗嘱监听 (单例)
+│   │   ├── topic-router.ts     # 主题消息路由分发
+│   │   └── rpc-manager.ts      # RPC 请求/响应匹配 + 超时管理
+│   │
+│   ├── stores/
+│   │   ├── waveform-store.ts   # 波形数据 RingBuffer (TypedArray, 预分配)
+│   │   ├── lowfreq-store.ts    # 低频采样 observable store (7s)
+│   │   ├── state-store.ts      # 系统状态 store (state_changed → 全量)
+│   │   └── alarm-store.ts      # 告警 store
+│   │
+│   └── types/
+│       ├── mqtt.ts             # MQTT 消息类型
+│       ├── state.ts            # SystemStateDto, CollectorState, LaserState
+│       └── commands.ts         # CommandResult, RPC 方法枚举
+│
+├── hooks/                      # 🟡 React 适配层
+│   ├── useMqttConnection.ts    # 设备 MQTT 连接管理 hook
+│   ├── useDeviceList.ts        # 设备列表状态
+│   ├── useSystemState.ts       # 订阅 state-store → React state
+│   ├── useLowFreqData.ts       # 订阅 lowfreq-store → React state
+│   ├── useWaveformData.ts      # 返回 RingBuffer ref (不触发 render)
+│   ├── useRpcCommand.ts        # 发送 RPC + 过渡态管理
+│   ├── useTheme.ts             # 深浅色主题切换
+│   └── useResizeObserver.ts    # 图表容器尺寸监听
+│
+├── components/                 # 🟢 UI 层
+│   ├── layout/
+│   │   ├── AppLayout.tsx       # 100vh flex 主容器
+│   │   ├── Navbar.tsx          # 顶部导航
+│   │   └── Sidebar.tsx         # 设备侧边栏
+│   │
+│   ├── sidebar/
+│   │   ├── DeviceCard.tsx      # 单个设备卡片
+│   │   ├── DeviceList.tsx      # 设备列表 (滚动容器)
+│   │   └── AddDeviceButtons.tsx # 底部按钮组
+│   │
+│   ├── control/
+│   │   ├── StatusControlBar.tsx # 状态控制栏主容器
+│   │   ├── StatusIndicators.tsx # 指示灯组
+│   │   ├── ControlButtons.tsx  # 采集/激光按钮组
+│   │   ├── OfflineBanner.tsx   # 离线横幅
+│   │   └── Clock.tsx           # 动态时钟
+│   │
+│   ├── charts/
+│   │   ├── ChartGrid.tsx       # 2×2 网格容器
+│   │   ├── WaveformChart.tsx   # 双通道波形 (uPlot)
+│   │   ├── VisChart.tsx        # 能见度折线 (uPlot)
+│   │   ├── MultiParamCard.tsx  # 六要素 (Empty 状态)
+│   │   └── Cn2Chart.tsx        # 折射率折线 (uPlot)
+│   │
+│   ├── modals/
+│   │   ├── AutoDiscoverModal.tsx # 自动发现 (两步)
+│   │   └── ManualAddModal.tsx  # 手动添加
+│   │
+│   └── common/
+│       └── ThemeSwitch.tsx     # ☀️/🌙 切换
+│
+├── styles/
+│   ├── variables.css           # CSS 变量 (--app-bg-color, dark-theme 等)
+│   ├── global.css              # 全局样式重置
+│   └── *.module.css            # 组件级样式 (CSS Modules)
+│
+└── utils/
+    ├── ring-buffer.ts          # TypedArray 环形缓冲区
+    ├── binary-parser.ts        # 波形二进制解析 (double[1000] 小端序)
+    └── rpc-id.ts               # GUID 生成
+</pre>
+  </div>
+</div>
+
+<div class="section">
+  <h3>目录职责边界</h3>
+  <div class="split">
+    <div class="mockup">
+      <div class="mockup-header">data/ — 纯 TS</div>
+      <div class="mockup-body">
+        <ul style="margin:0;padding-left:1rem">
+          <li>不 import React</li>
+          <li>不依赖任何组件</li>
+          <li>可独立单元测试</li>
+          <li>模块级单例</li>
+        </ul>
+      </div>
+    </div>
+    <div class="mockup">
+      <div class="mockup-header">hooks/ — 适配层</div>
+      <div class="mockup-body">
+        <ul style="margin:0;padding-left:1rem">
+          <li>唯一的 React 依赖入口</li>
+          <li>从 data store 读 → 写 React state</li>
+          <li>热数据只传 ref，不触发 render</li>
+        </ul>
+      </div>
+    </div>
+    <div class="mockup">
+      <div class="mockup-header">components/ — UI 层</div>
+      <div class="mockup-body">
+        <ul style="margin:0;padding-left:1rem">
+          <li>只关注渲染和用户交互</li>
+          <li>通过 hooks 获取数据</li>
+          <li>不知道 MQTT/存储细节</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>

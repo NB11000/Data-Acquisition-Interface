@@ -1,0 +1,40 @@
+<h2>数据架构方案对比</h2>
+<p class="subtitle">核心挑战：100ms 波形推送 (16KB/帧) + 7s 低频数据 + 状态事件 如何在 React 中高效处理？</p>
+
+<div class="options">
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>分层数据架构 (推荐)</h3>
+      <p>数据层用纯 TS 模块，脱离 React 生命周期。热数据 (100ms 波形) 通过 uPlot 命令式更新，温数据 (7s 低频) 通过 observable store 订阅到 leaf 组件，冷数据 (状态/配置) 走 React state。</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>优点</h4><ul><li>热数据不进 React，零 GC 压力</li><li>数据层可独立测试</li><li>符合 frontend-perf 规范</li></ul></div>
+        <div class="cons"><h4>缺点</h4><ul><li>文件较多，初始搭建成本高</li><li>团队需理解分层理念</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>纯 React State 方案</h3>
+      <p>所有状态通过 useState/useReducer/Context 管理。MQTT 消息直接 setState。uPlot 通过 useRef + useEffect 更新。</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>优点</h4><ul><li>标准 React，学习成本低</li><li>代码集中，文件少</li></ul></div>
+        <div class="cons"><h4>缺点</h4><ul><li>100ms setState 造成高频重渲染</li><li>Context 变化导致大面积子树更新</li><li>GC 压力大 (每帧 16KB 新对象)</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Zustand 集中式 Store</h3>
+      <p>使用 Zustand 管理所有状态。MQTT 消息 dispatch action 更新 store。组件通过 selector 订阅需要的 slice。</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>优点</h4><ul><li>DevTools 可调试</li><li>selector 防止不必要渲染</li><li>社区成熟</li></ul></div>
+        <div class="cons"><h4>缺点</h4><ul><li>增加依赖</li><li>热数据仍然经过 store (字符串比较/序列化)</li><li>对于本场景偏重</li></ul></div>
+      </div>
+    </div>
+  </div>
+</div>
