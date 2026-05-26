@@ -7,35 +7,60 @@ export class RingBuffer {
   private capacity: number;
   private frameSize: number;
   private writeIndex = 0;
+  private _count = 0;
 
   constructor(frameSize: number, maxFrames: number) {
+    if (!Number.isInteger(frameSize) || frameSize <= 0) {
+      throw new Error(`frameSize must be a positive integer, got ${frameSize}`);
+    }
+    if (!Number.isInteger(maxFrames) || maxFrames <= 0) {
+      throw new Error(`maxFrames must be a positive integer, got ${maxFrames}`);
+    }
     this.frameSize = frameSize;
     this.capacity = maxFrames;
     this.buffer = new Float64Array(frameSize * maxFrames);
   }
 
   push(frame: Float64Array | number[]): number {
+    if (frame instanceof Float64Array) {
+      if (frame.length !== this.frameSize) {
+        throw new Error(`Float64Array length ${frame.length} does not match frameSize ${this.frameSize}`);
+      }
+    } else {
+      if (frame.length > this.frameSize) {
+        throw new Error(`number[] length ${frame.length} exceeds frameSize ${this.frameSize}`);
+      }
+    }
     const offset = this.writeIndex * this.frameSize;
     if (frame instanceof Float64Array) {
       this.buffer.set(frame, offset);
     } else {
-      for (let i = 0; i < Math.min(frame.length, this.frameSize); i++) {
-        this.buffer[offset + i] = frame[i];
+      for (let i = 0; i < this.frameSize; i++) {
+        this.buffer[offset + i] = i < frame.length ? frame[i] : 0;
       }
     }
     const idx = this.writeIndex;
     this.writeIndex = (this.writeIndex + 1) % this.capacity;
+    if (this._count < this.capacity) {
+      this._count++;
+    }
     return idx;
   }
 
+  /**
+   * 返回原始底层缓冲区 (readonly — DO NOT MUTATE)
+   * 零拷贝暴露给图表层使用
+   */
   getRawBuffer(): Float64Array { return this.buffer; }
   getFrameSize(): number { return this.frameSize; }
   getCapacity(): number { return this.capacity; }
+  getCount(): number { return this._count; }
   getWriteIndex(): number { return this.writeIndex; }
 
   getRecentFrames(count: number): Float64Array[] {
+    if (count <= 0) return [];
     const frames: Float64Array[] = [];
-    const actual = Math.min(count, this.capacity);
+    const actual = Math.min(count, this._count);
     for (let i = 0; i < actual; i++) {
       const idx = (this.writeIndex - actual + i + this.capacity) % this.capacity;
       const offset = idx * this.frameSize;
@@ -47,5 +72,6 @@ export class RingBuffer {
   clear(): void {
     this.buffer.fill(0);
     this.writeIndex = 0;
+    this._count = 0;
   }
 }
