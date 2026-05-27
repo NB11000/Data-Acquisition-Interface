@@ -8,7 +8,7 @@ export function startMockWaveform(
   let running = true;
   let t = 0;
 
-  const timer = setInterval(() => {
+  const tick = () => {
     if (!running) return;
 
     const ch1 = generateFrame(t, 1.0, 50, 0.05);
@@ -17,7 +17,10 @@ export function startMockWaveform(
     mockClient.injectMessage(`daq/${machineId}/waveform/ch1`, ch1);
     mockClient.injectMessage(`daq/${machineId}/waveform/ch2`, ch2);
     t++;
-  }, intervalMs);
+  };
+
+  tick(); // 立即发送第一帧
+  const timer = setInterval(tick, intervalMs);
 
   return () => {
     running = false;

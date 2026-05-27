@@ -9,7 +9,7 @@ export function startMockLowFreq(
   let running = true;
   let index = 0;
 
-  const timer = setInterval(() => {
+  const tick = () => {
     if (!running) return;
 
     const sample: LowFreqSample = {
@@ -32,7 +32,10 @@ export function startMockLowFreq(
       `daq/${machineId}/lowfreq`,
       new TextEncoder().encode(json),
     );
-  }, intervalMs);
+  };
+
+  tick(); // 立即发送第一个采样
+  const timer = setInterval(tick, intervalMs);
 
   return () => {
     running = false;
