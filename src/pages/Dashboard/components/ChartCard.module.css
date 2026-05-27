@@ -1,0 +1,23 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--chart-card-bg);
+  border-radius: 6px;
+  border-top: 3px solid var(--chart-card-border-top);
+  padding: var(--chart-card-padding);
+  overflow: hidden;
+}
+
+.title {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+  flex-shrink: 0;
+}
+
+.chartWrap {
+  flex: 1;
+  min-height: 0;
+}
