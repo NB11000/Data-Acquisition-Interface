@@ -1,27 +1,38 @@
 import type { CommandResult, SystemStateDto } from '../mqtt/types';
 import type { MockMqttClient } from './mockMqttClient';
 
-const defaultState: SystemStateDto = {
-  server: { isApiAlive: true, timestamp: new Date().toISOString() },
-  collector: {
-    processConnected: true,
-    deviceOpened: false,
-    acquiring: false,
-    lastMessage: '',
-  },
-  laser: {
-    serialConnected: false,
-    emissionOn: false,
-    portName: 'COM3',
-    lastMessage: '',
-  },
-  timestamp: new Date().toISOString(),
-};
+// ── Per-device default state factory (Issue 10) ──
 
-let currentState: SystemStateDto = { ...defaultState };
+function createDefaultState(): SystemStateDto {
+  return {
+    server: { isApiAlive: true, timestamp: new Date().toISOString() },
+    collector: {
+      processConnected: true,
+      deviceOpened: false,
+      acquiring: false,
+      lastMessage: '',
+    },
+    laser: {
+      serialConnected: false,
+      emissionOn: false,
+      portName: 'COM3',
+      lastMessage: '',
+    },
+    timestamp: new Date().toISOString(),
+  };
+}
 
-export function getMockState(): SystemStateDto {
-  return { ...currentState, timestamp: new Date().toISOString() };
+const stateMap = new Map<string, SystemStateDto>();
+
+function ensureState(machineId: string): SystemStateDto {
+  if (!stateMap.has(machineId)) {
+    stateMap.set(machineId, createDefaultState());
+  }
+  return stateMap.get(machineId)!;
+}
+
+export function getMockState(machineId: string): SystemStateDto {
+  return { ...ensureState(machineId), timestamp: new Date().toISOString() };
 }
 
 export function handleMockRpc(
@@ -35,6 +46,7 @@ export function handleMockRpc(
 
   setTimeout(() => {
     let result: CommandResult;
+    const currentState = ensureState(machineId);
 
     switch (method) {
       case 'SYSTEM_STATE':
@@ -42,7 +54,7 @@ export function handleMockRpc(
           success: true,
           code: 'OK',
           message: '系统状态获取成功',
-          state: getMockState(),
+          state: getMockState(machineId),
           timestamp: new Date().toISOString(),
         };
         break;

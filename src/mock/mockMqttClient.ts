@@ -1,11 +1,8 @@
-type MessageHandler = (topic: string, payload: Buffer | Uint8Array) => void;
+type MessageHandler = (topic: string, payload: Uint8Array) => void;
 
 interface MockSubscription {
   topic: string;
-  handler: MessageHandler;
 }
-
-type EventHandler = (topic: string, payload: Uint8Array) => void;
 
 export class MockMqttClient {
   private subscriptions: MockSubscription[] = [];
@@ -16,7 +13,9 @@ export class MockMqttClient {
     this.clientId = clientId;
   }
 
+  // ── Issue 4 guard: prevent double-connect in StrictMode ──
   connect(): void {
+    if (this.connected) return;
     setTimeout(() => {
       this.connected = true;
       console.log(`[MockMqtt] ${this.clientId} connected`);
@@ -25,13 +24,21 @@ export class MockMqttClient {
   }
 
   subscribe(topic: string): void {
-    this.subscriptions.push({ topic, handler: () => {} });
+    // Dedup exact-topic entries (helps StrictMode double-mount)
+    if (this.subscriptions.some((s) => s.topic === topic)) return;
+    this.subscriptions.push({ topic });
     console.log(`[MockMqtt] ${this.clientId} subscribed: ${topic}`);
   }
 
+  // ── Issue 7: use topicMatches for wildcard unsubscribe ──
   unsubscribe(topic: string): void {
-    this.subscriptions = this.subscriptions.filter((s) => s.topic !== topic);
-    console.log(`[MockMqtt] ${this.clientId} unsubscribed: ${topic}`);
+    const before = this.subscriptions.length;
+    this.subscriptions = this.subscriptions.filter(
+      (s) => !this.topicMatches(topic, s.topic),
+    );
+    console.log(
+      `[MockMqtt] ${this.clientId} unsubscribed: ${topic} (removed ${before - this.subscriptions.length})`,
+    );
   }
 
   publish(topic: string, payload: string | Uint8Array): void {
@@ -59,6 +66,11 @@ export class MockMqttClient {
   injectReconnect(): void {
     this.connected = true;
     if (this.onConnect) this.onConnect();
+  }
+
+  /** no-op for interface compliance */
+  end(_force?: boolean): void {
+    this.connected = false;
   }
 
   onConnect: (() => void) | null = null;

@@ -1,5 +1,5 @@
 import type { MqttClientLike } from './client';
-import type { MockMqttClient } from '../mock/mockMqttClient';
+import { tryResolveRpc } from './rpc';
 import { parseWaveformBinary } from '../utils/binary';
 import { useCollectorStore } from '../stores/collectorStore';
 import { useLaserStore } from '../stores/laserStore';
@@ -9,8 +9,16 @@ import { useWaveformStore } from '../stores/waveformStore';
 import { useDataStore } from '../stores/dataStore';
 import type { StateChangedEvent, WillMessage, DeviceAlarm, LowFreqSample } from './types';
 
+// ── Issue 1 + Issue 11 ──
+// Single onMessage handler. RPC responses are checked first, then domain topics.
+// Uses MqttClientLike callback properties – no casting to MockMqttClient.
+
 export function setupMqttRouter(client: MqttClientLike): void {
-  (client as MockMqttClient).onMessage = (topic: string, payload: Uint8Array) => {
+  client.onMessage = (topic: string, payload: Uint8Array) => {
+    // 1) RPC responses (Issue 11)
+    if (tryResolveRpc(topic, payload)) return;
+
+    // 2) Domain topics
     if (topic.includes('/waveform/ch1')) {
       const data = parseWaveformBinary(payload.buffer as ArrayBuffer);
       useWaveformStore.getState().appendCh1(data, Date.now());

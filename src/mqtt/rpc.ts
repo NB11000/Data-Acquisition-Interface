@@ -14,27 +14,25 @@ interface PendingRpc {
 
 const pendingRpcs = new Map<string, PendingRpc>();
 
-export function setupRpcListener(client: MqttClientLike, _machineId: string): void {
-  const originalOnMessage = (client as MockMqttClient).onMessage;
+// ── Issue 11: Called by the single onMessage handler in router.ts ──
 
-  (client as MockMqttClient).onMessage = (topic: string, payload: Uint8Array) => {
-    const match = topic.match(/\$rpc\/[^/]+\/[^/]+\/([^/]+)\/response/);
-    if (match) {
-      const corrId = match[1];
-      const pending = pendingRpcs.get(corrId);
-      if (pending) {
-        clearTimeout(pending.timeout);
-        pendingRpcs.delete(corrId);
-        const result = JSON.parse(new TextDecoder().decode(payload)) as CommandResult;
-        pending.resolve(result);
-        return;
-      }
-    }
+/**
+ * Attempt to resolve a pending RPC from an incoming message.
+ * Returns true if the message was an RPC response (consumed); false otherwise.
+ */
+export function tryResolveRpc(topic: string, payload: Uint8Array): boolean {
+  const match = topic.match(/\$rpc\/[^/]+\/[^/]+\/([^/]+)\/response/);
+  if (!match) return false;
 
-    if (originalOnMessage) {
-      originalOnMessage(topic, payload);
-    }
-  };
+  const corrId = match[1];
+  const pending = pendingRpcs.get(corrId);
+  if (pending) {
+    clearTimeout(pending.timeout);
+    pendingRpcs.delete(corrId);
+    const result = JSON.parse(new TextDecoder().decode(payload)) as CommandResult;
+    pending.resolve(result);
+  }
+  return true;
 }
 
 export function sendRpcCommand(
