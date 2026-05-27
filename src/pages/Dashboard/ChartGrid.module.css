@@ -1,0 +1,13 @@
+.grid {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap: 12px;
+  min-height: 0;
+}
+
+.grid > * {
+  min-height: 0;
+  overflow: hidden;
+}
