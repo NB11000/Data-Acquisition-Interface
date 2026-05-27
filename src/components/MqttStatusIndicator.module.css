@@ -1,0 +1,23 @@
+.indicators {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.green { background: #52c41a; }
+.red { background: #ff4d4f; }
+.yellow { background: #faad14; }
+.gray { background: #d9d9d9; }
