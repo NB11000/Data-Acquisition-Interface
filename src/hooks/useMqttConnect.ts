@@ -14,6 +14,7 @@ import {
   rpcResponsePattern,
 } from '../mqtt/topics';
 import type { MqttClientLike } from '../mqtt/client';
+import type { MockMqttClient } from '../mock/mockMqttClient';
 import { MQTT_MODE } from '../env';
 
 export function useMqttConnect(): void {
@@ -25,7 +26,7 @@ export function useMqttConnect(): void {
 
     const client = initMqttClient('ui-client');
 
-    client.onConnect = () => {
+    (client as MockMqttClient).onConnect = () => {
       useMqttStore.getState().setConnected(true);
       const selectedId = useDeviceStore.getState().selectedId;
       if (selectedId) {
@@ -33,7 +34,7 @@ export function useMqttConnect(): void {
       }
     };
 
-    client.onDisconnect = () => {
+    (client as MockMqttClient).onDisconnect = () => {
       useMqttStore.getState().setConnected(false);
       clearPendingRpcs();
     };
@@ -44,7 +45,7 @@ export function useMqttConnect(): void {
     client.connect();
     if (MQTT_MODE === 'mock') {
       setTimeout(() => {
-        client.onConnect?.();
+        (client as MockMqttClient).onConnect?.();
       }, 50);
     }
 

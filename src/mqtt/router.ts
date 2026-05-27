@@ -1,4 +1,5 @@
 import type { MqttClientLike } from './client';
+import type { MockMqttClient } from '../mock/mockMqttClient';
 import { parseWaveformBinary } from '../utils/binary';
 import { useCollectorStore } from '../stores/collectorStore';
 import { useLaserStore } from '../stores/laserStore';
@@ -9,7 +10,7 @@ import { useDataStore } from '../stores/dataStore';
 import type { StateChangedEvent, WillMessage, DeviceAlarm, LowFreqSample } from './types';
 
 export function setupMqttRouter(client: MqttClientLike): void {
-  client.onMessage = (topic: string, payload: Uint8Array) => {
+  (client as MockMqttClient).onMessage = (topic: string, payload: Uint8Array) => {
     if (topic.includes('/waveform/ch1')) {
       const data = parseWaveformBinary(payload.buffer as ArrayBuffer);
       useWaveformStore.getState().appendCh1(data, Date.now());

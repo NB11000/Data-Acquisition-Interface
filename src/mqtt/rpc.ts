@@ -1,4 +1,5 @@
 import type { MqttClientLike } from './client';
+import type { MockMqttClient } from '../mock/mockMqttClient';
 import { rpcRequestTopic } from './topics';
 import { generateGuid } from '../utils/id';
 import type { CommandResult } from './types';
@@ -14,9 +15,9 @@ interface PendingRpc {
 const pendingRpcs = new Map<string, PendingRpc>();
 
 export function setupRpcListener(client: MqttClientLike, _machineId: string): void {
-  const originalOnMessage = client.onMessage;
+  const originalOnMessage = (client as MockMqttClient).onMessage;
 
-  client.onMessage = (topic: string, payload: Uint8Array) => {
+  (client as MockMqttClient).onMessage = (topic: string, payload: Uint8Array) => {
     const match = topic.match(/\$rpc\/[^/]+\/[^/]+\/([^/]+)\/response/);
     if (match) {
       const corrId = match[1];
@@ -54,7 +55,7 @@ export function sendRpcCommand(
     pendingRpcs.set(corrId, { resolve, reject, timeout });
 
     if (MQTT_MODE === 'mock') {
-      handleMockRpc(client, machineId, method, corrId);
+      handleMockRpc(client as MockMqttClient, machineId, method, corrId);
     } else {
       const data = JSON.stringify(payload ?? {});
       client.publish(topic, data);
