@@ -8,13 +8,40 @@ import { Clock } from '../../components/Clock';
 import { MqttStatusIndicator } from '../../components/MqttStatusIndicator';
 import styles from './StatusControlBar.module.css';
 
+const getButtonLabel = (phase: string, running: string, idle: string) => {
+  if (phase === 'sending') return '发送中...';
+  if (phase === 'running') return running;
+  return idle;
+};
+
+const getButtonType = (phase: string, running: boolean) => {
+  if (phase === 'sending') return undefined;
+  if (phase === 'running') return running ? 'primary' : 'default';
+  return 'default';
+};
+
 export function StatusControlBar() {
   const selectedId = useDeviceStore((s) => s.selectedId);
   const devices = useDeviceStore((s) => s.devices);
   const selectedDevice = devices.find((d) => d.id === selectedId);
 
-  const collector = useCollectorStore();
-  const laser = useLaserStore();
+  // Selective store subscriptions — only the fields actually used
+  const deviceOpened = useCollectorStore((s) => s.deviceOpened);
+  const acquiring = useCollectorStore((s) => s.acquiring);
+  const openButtonPhase = useCollectorStore((s) => s.openButtonPhase);
+  const startButtonPhase = useCollectorStore((s) => s.startButtonPhase);
+  const setCollectorButtonPhase = useCollectorStore((s) => s.setButtonPhase);
+  const setDeviceOpened = useCollectorStore((s) => s.setDeviceOpened);
+  const setAcquiring = useCollectorStore((s) => s.setAcquiring);
+
+  const serialConnected = useLaserStore((s) => s.serialConnected);
+  const emissionOn = useLaserStore((s) => s.emissionOn);
+  const connectButtonPhase = useLaserStore((s) => s.connectButtonPhase);
+  const laserButtonPhase = useLaserStore((s) => s.laserButtonPhase);
+  const setLaserButtonPhase = useLaserStore((s) => s.setButtonPhase);
+  const setSerialConnected = useLaserStore((s) => s.setSerialConnected);
+  const setEmissionOn = useLaserStore((s) => s.setEmissionOn);
+
   const willReceived = useMqttStore((s) => s.willReceived);
   const willDeviceId = useMqttStore((s) => s.willDeviceId);
   const mqttConnected = useMqttStore((s) => s.mqttConnected);
@@ -26,10 +53,10 @@ export function StatusControlBar() {
   const computeDisabled = () => {
     if (allDisabled) return { open: true, close: true, start: true, stop: true, connect: true, disconnect: true, laserOn: true, laserOff: true };
 
-    const collectorOpen = collector.deviceOpened;
-    const isAcquiring = collector.acquiring;
-    const laserConnected = laser.serialConnected;
-    const laserEmitting = laser.emissionOn;
+    const collectorOpen = deviceOpened;
+    const isAcquiring = acquiring;
+    const laserConnected = serialConnected;
+    const laserEmitting = emissionOn;
 
     return {
       open: collectorOpen,
@@ -44,18 +71,6 @@ export function StatusControlBar() {
   };
 
   const disabled = computeDisabled();
-
-  const getButtonLabel = (phase: string, running: string, idle: string) => {
-    if (phase === 'sending') return '发送中...';
-    if (phase === 'running') return running;
-    return idle;
-  };
-
-  const getButtonType = (phase: string, running: boolean) => {
-    if (phase === 'sending') return undefined;
-    if (phase === 'running') return running ? 'primary' : 'default';
-    return 'default';
-  };
 
   const handleRpc = async (
     method: string,
@@ -100,36 +115,36 @@ export function StatusControlBar() {
           <span className={styles.groupLabel}>采集卡</span>
           <Button
             size="small"
-            type={getButtonType(collector.openButtonPhase, collector.deviceOpened)}
+            type={getButtonType(openButtonPhase, deviceOpened)}
             disabled={disabled.open}
-            loading={collector.openButtonPhase === 'sending'}
+            loading={openButtonPhase === 'sending'}
             onClick={() =>
               handleRpc(
                 'collector-open-device',
-                () => collector.setButtonPhase('open', 'sending'),
-                () => { collector.setButtonPhase('open', 'running'); collector.setDeviceOpened(true); },
-                () => collector.setButtonPhase('open', 'idle'),
+                () => setCollectorButtonPhase('open', 'sending'),
+                () => { setCollectorButtonPhase('open', 'running'); setDeviceOpened(true); },
+                () => setCollectorButtonPhase('open', 'idle'),
               )
             }
           >
-            {getButtonLabel(collector.openButtonPhase, '已打开', '打开采集卡')}
+            {getButtonLabel(openButtonPhase, '已打开', '打开采集卡')}
           </Button>
           <Button
             size="small"
-            type={getButtonType(collector.startButtonPhase, collector.acquiring)}
-            danger={collector.startButtonPhase === 'running'}
+            type={getButtonType(startButtonPhase, acquiring)}
+            danger={startButtonPhase === 'running'}
             disabled={disabled.start}
-            loading={collector.startButtonPhase === 'sending'}
+            loading={startButtonPhase === 'sending'}
             onClick={() =>
               handleRpc(
                 'collector-start-ad',
-                () => collector.setButtonPhase('start', 'sending'),
-                () => { collector.setButtonPhase('start', 'running'); collector.setAcquiring(true); },
-                () => collector.setButtonPhase('start', 'idle'),
+                () => setCollectorButtonPhase('start', 'sending'),
+                () => { setCollectorButtonPhase('start', 'running'); setAcquiring(true); },
+                () => setCollectorButtonPhase('start', 'idle'),
               )
             }
           >
-            {getButtonLabel(collector.startButtonPhase, '采集中', '开始采集')}
+            {getButtonLabel(startButtonPhase, '采集中', '开始采集')}
           </Button>
         </div>
 
@@ -137,36 +152,36 @@ export function StatusControlBar() {
           <span className={styles.groupLabel}>激光器</span>
           <Button
             size="small"
-            type={getButtonType(laser.connectButtonPhase, laser.serialConnected)}
+            type={getButtonType(connectButtonPhase, serialConnected)}
             disabled={disabled.connect}
-            loading={laser.connectButtonPhase === 'sending'}
+            loading={connectButtonPhase === 'sending'}
             onClick={() =>
               handleRpc(
                 'laser-connect',
-                () => laser.setButtonPhase('connect', 'sending'),
-                () => { laser.setButtonPhase('connect', 'running'); laser.setSerialConnected(true); },
-                () => laser.setButtonPhase('connect', 'idle'),
+                () => setLaserButtonPhase('connect', 'sending'),
+                () => { setLaserButtonPhase('connect', 'running'); setSerialConnected(true); },
+                () => setLaserButtonPhase('connect', 'idle'),
               )
             }
           >
-            {getButtonLabel(laser.connectButtonPhase, '已连接', '连接激光')}
+            {getButtonLabel(connectButtonPhase, '已连接', '连接激光')}
           </Button>
           <Button
             size="small"
-            type={getButtonType(laser.laserButtonPhase, laser.emissionOn)}
-            danger={laser.laserButtonPhase === 'running'}
+            type={getButtonType(laserButtonPhase, emissionOn)}
+            danger={laserButtonPhase === 'running'}
             disabled={disabled.laserOn}
-            loading={laser.laserButtonPhase === 'sending'}
+            loading={laserButtonPhase === 'sending'}
             onClick={() =>
               handleRpc(
                 'laser-on',
-                () => laser.setButtonPhase('laser', 'sending'),
-                () => { laser.setButtonPhase('laser', 'running'); laser.setEmissionOn(true); },
-                () => laser.setButtonPhase('laser', 'idle'),
+                () => setLaserButtonPhase('laser', 'sending'),
+                () => { setLaserButtonPhase('laser', 'running'); setEmissionOn(true); },
+                () => setLaserButtonPhase('laser', 'idle'),
               )
             }
           >
-            {getButtonLabel(laser.laserButtonPhase, '发射中', '开启激光')}
+            {getButtonLabel(laserButtonPhase, '发射中', '开启激光')}
           </Button>
         </div>
       </div>
