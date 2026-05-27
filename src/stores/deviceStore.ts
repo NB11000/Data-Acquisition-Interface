@@ -21,6 +21,7 @@ interface DeviceStore {
   setSelected: (id: string) => void;
   setOnline: (id: string, online: boolean) => void;
   setSearch: (text: string) => void;
+  updateDevice: (id: string, partial: Partial<Device>) => void;
 }
 
 export const useDeviceStore = create<DeviceStore>((set) => ({
@@ -43,4 +44,10 @@ export const useDeviceStore = create<DeviceStore>((set) => ({
       ),
     })),
   setSearch: (text) => set({ searchText: text }),
+  updateDevice: (id, partial) =>
+    set((s) => ({
+      devices: s.devices.map((d) =>
+        d.id === id ? { ...d, ...partial } : d,
+      ),
+    })),
 }));

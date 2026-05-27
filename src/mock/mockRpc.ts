@@ -71,11 +71,19 @@ export function handleMockRpc(
         break;
 
       case 'collector-start-ad':
+        if (!currentState.collector.deviceOpened) {
+          result = { success: false, code: 'PRECONDITION_DEVICE_NOT_OPENED', message: '请先打开采集卡', timestamp: new Date().toISOString() };
+          break;
+        }
         currentState.collector.acquiring = true;
         result = { success: true, code: 'AD_STARTED', message: '采集已开始', timestamp: new Date().toISOString() };
         break;
 
       case 'collector-stop-ad':
+        if (!currentState.collector.acquiring) {
+          result = { success: false, code: 'PRECONDITION_NOT_ACQUIRING', message: '当前未在采集', timestamp: new Date().toISOString() };
+          break;
+        }
         currentState.collector.acquiring = false;
         result = { success: true, code: 'AD_STOPPED', message: '采集已停止', timestamp: new Date().toISOString() };
         break;
@@ -86,17 +94,29 @@ export function handleMockRpc(
         break;
 
       case 'laser-disconnect':
+        if (!currentState.laser.serialConnected) {
+          result = { success: false, code: 'PRECONDITION_LASER_NOT_CONNECTED', message: '激光器未连接', timestamp: new Date().toISOString() };
+          break;
+        }
         currentState.laser.serialConnected = false;
         currentState.laser.emissionOn = false;
         result = { success: true, code: 'LASER_DISCONNECTED', message: '激光器已断开', timestamp: new Date().toISOString() };
         break;
 
       case 'laser-on':
+        if (!currentState.laser.serialConnected) {
+          result = { success: false, code: 'PRECONDITION_LASER_NOT_CONNECTED', message: '请先连接激光器', timestamp: new Date().toISOString() };
+          break;
+        }
         currentState.laser.emissionOn = true;
         result = { success: true, code: 'LASER_ON', message: '激光已开启', timestamp: new Date().toISOString() };
         break;
 
       case 'laser-off':
+        if (!currentState.laser.emissionOn) {
+          result = { success: false, code: 'PRECONDITION_LASER_NOT_EMITTING', message: '激光未在发射', timestamp: new Date().toISOString() };
+          break;
+        }
         currentState.laser.emissionOn = false;
         result = { success: true, code: 'LASER_OFF', message: '激光已关闭', timestamp: new Date().toISOString() };
         break;

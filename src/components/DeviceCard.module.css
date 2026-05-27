@@ -16,19 +16,23 @@
   border-color: #1890ff;
 }
 
-.title {
+.row1 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.name {
   font-size: 13px;
   font-weight: 500;
   color: var(--text-primary);
-  display: flex;
-  align-items: center;
-  gap: 6px;
 }
 
-.subtitle {
-  font-size: 11px;
-  color: var(--text-secondary);
-  margin-top: 2px;
+.status {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
 }
 
 .statusDot {
@@ -40,3 +44,26 @@
 
 .online { background: #52c41a; }
 .offline { background: #ff4d4f; }
+
+.statusText {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.row2 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 4px;
+}
+
+.subtitle {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.actions {
+  display: flex;
+  gap: 0;
+  flex-shrink: 0;
+}

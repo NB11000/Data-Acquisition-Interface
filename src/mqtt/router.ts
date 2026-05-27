@@ -7,7 +7,8 @@ import { useMqttStore } from '../stores/mqttStore';
 import { useAlarmStore } from '../stores/alarmStore';
 import { useWaveformStore } from '../stores/waveformStore';
 import { useDataStore } from '../stores/dataStore';
-import type { StateChangedEvent, WillMessage, DeviceAlarm, LowFreqSample } from './types';
+import { useDeviceStore } from '../stores/deviceStore';
+import type { StateChangedEvent, WillMessage, DeviceAlarm, LowFreqSample, SysClientEvent } from './types';
 
 // ── Issue 1 + Issue 11 ──
 // Single onMessage handler. RPC responses are checked first, then domain topics.
@@ -15,6 +16,20 @@ import type { StateChangedEvent, WillMessage, DeviceAlarm, LowFreqSample } from 
 
 export function setupMqttRouter(client: MqttClientLike): void {
   client.onMessage = (topic: string, payload: Uint8Array) => {
+    // 0) $SYS broker events — device online status
+    if (topic.startsWith('$SYS/brokers/')) {
+      const parts = topic.split('/');
+      const clientId = parts[4];
+      const isConnected = parts[5] === 'connected';
+      try {
+        const event = JSON.parse(new TextDecoder().decode(payload)) as SysClientEvent;
+        useDeviceStore.getState().setOnline(clientId, event.connected ?? isConnected);
+      } catch {
+        useDeviceStore.getState().setOnline(clientId, isConnected);
+      }
+      return;
+    }
+
     // 1) RPC responses (Issue 11)
     if (tryResolveRpc(topic, payload)) return;
 

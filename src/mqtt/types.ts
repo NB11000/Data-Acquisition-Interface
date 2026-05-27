@@ -85,6 +85,14 @@ export interface LowFreqSample {
   windDir: number;
 }
 
+// ── $SYS ──
+export interface SysClientEvent {
+  connected: boolean;
+  clientid: string;
+  username?: string;
+  ts?: number;
+}
+
 // ── Device ──
 export interface DeviceInfo {
   id: string;

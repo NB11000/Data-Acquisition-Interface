@@ -37,3 +37,11 @@ export function allDeviceEventsPattern(machineId: string): string {
 export function allDeviceWaveformPattern(machineId: string): string {
   return `daq/${machineId}/waveform/#`;
 }
+
+export function sysClientConnectedTopic(): string {
+  return '$SYS/brokers/+/clients/+/connected';
+}
+
+export function sysClientDisconnectedTopic(): string {
+  return '$SYS/brokers/+/clients/+/disconnected';
+}
