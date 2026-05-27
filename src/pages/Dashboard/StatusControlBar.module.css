@@ -1,0 +1,54 @@
+.container {
+  background: var(--statusbar-bg);
+  border: 1px solid var(--statusbar-border);
+  border-radius: 6px;
+  padding: 12px 16px;
+  margin-bottom: 12px;
+  flex-shrink: 0;
+}
+
+.row1 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.deviceInfo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.deviceName {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.deviceId {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.row2 {
+  display: flex;
+  gap: 24px;
+  align-items: center;
+}
+
+.group {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.groupLabel {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-right: 4px;
+}
+
+.banner {
+  margin-top: 10px;
+  border-radius: 4px;
+}
