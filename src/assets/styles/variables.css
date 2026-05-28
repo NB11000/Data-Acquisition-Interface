@@ -1,0 +1,31 @@
+:root {
+  --app-bg-color: #f0f2f5;
+  --app-content-bg: #ffffff;
+  --app-sidebar-bg: #ffffff;
+  --app-navbar-bg: #001529;
+  --text-primary: rgba(0, 0, 0, 0.85);
+  --text-secondary: rgba(0, 0, 0, 0.45);
+  --statusbar-bg: #fafafa;
+  --statusbar-border: #e8e8e8;
+  --chart-card-bg: #ffffff;
+  --chart-card-border-top: #1890ff;
+  --chart-card-padding: 8px;
+  --device-card-hover: #e6f7ff;
+  --navbar-text: rgba(255, 255, 255, 0.85);
+}
+
+body.dark-theme {
+  --app-bg-color: #141414;
+  --app-content-bg: #1f1f1f;
+  --app-sidebar-bg: #1f1f1f;
+  --app-navbar-bg: #141414;
+  --text-primary: rgba(255, 255, 255, 0.85);
+  --text-secondary: rgba(255, 255, 255, 0.45);
+  --statusbar-bg: rgba(255, 255, 255, 0.04);
+  --statusbar-border: #303030;
+  --chart-card-bg: #1f1f1f;
+  --chart-card-border-top: #1890ff;
+  --chart-card-padding: 8px;
+  --device-card-hover: #111d2c;
+  --navbar-text: rgba(255, 255, 255, 0.85);
+}

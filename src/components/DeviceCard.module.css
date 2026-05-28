@@ -1,0 +1,69 @@
+.card {
+  padding: 10px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s;
+  border: 1px solid transparent;
+  margin-bottom: 4px;
+}
+
+.card:hover {
+  background: var(--device-card-hover);
+}
+
+.active {
+  background: var(--device-card-hover);
+  border-color: #1890ff;
+}
+
+.row1 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.status {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.statusDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.online { background: #52c41a; }
+.offline { background: #ff4d4f; }
+
+.statusText {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.row2 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 4px;
+}
+
+.subtitle {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.actions {
+  display: flex;
+  gap: 0;
+  flex-shrink: 0;
+}

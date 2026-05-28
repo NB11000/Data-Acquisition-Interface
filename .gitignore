@@ -33,5 +33,8 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
+# Claude Code 本地配置
+.claude/settings.local.json
+
 # 类型定义
 *.d.ts.map

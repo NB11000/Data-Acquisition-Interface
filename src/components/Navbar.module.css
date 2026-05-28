@@ -1,0 +1,44 @@
+.navbar {
+  height: 48px;
+  display: flex;
+  align-items: center;
+  background: var(--app-navbar-bg);
+  padding: 0 16px;
+  flex-shrink: 0;
+  z-index: 100;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  margin-right: 24px;
+  cursor: pointer;
+}
+
+.tabs {
+  flex: 1;
+}
+
+.tabs :global(.ant-tabs-nav) {
+  margin-bottom: 0 !important;
+}
+
+.tabs :global(.ant-tabs-nav .ant-tabs-tab) {
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.tabs :global(.ant-tabs-nav .ant-tabs-tab-active .ant-tabs-tab-btn) {
+  color: #fff !important;
+}
+
+.right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--navbar-text);
+}
