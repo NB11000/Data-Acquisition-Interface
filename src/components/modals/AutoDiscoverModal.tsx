@@ -41,7 +41,7 @@ export function AutoDiscoverModal({ open, onClose }: Props) {
         username: '001',
         password: '001',
         tls: true,
-        isOnline: false,
+        isOnline: m.online,
       };
       addDevice(device);
     }
