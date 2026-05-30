@@ -10,38 +10,22 @@ import { useWaveformStore } from '../stores/waveformStore';
 import { useDataStore } from '../stores/dataStore';
 import { useAlarmStore } from '../stores/alarmStore';
 import { useServerStore, type PoolConnectionState as ConnectionState } from '../stores/serverStore';
-import { MQTT_MODE } from '../env';
-import type { MockMqttClient as MockClient } from '../mock/mockMqttClient';
-import { startMockWaveform } from '../mock/mockWaveform';
-import { startMockLowFreq } from '../mock/mockLowFreq';
-
-function injectMockSysConnected(mockClient: MockClient, deviceId: string): void {
-  const sysTopic = `$SYS/brokers/emqx/clients/${deviceId}/connected`;
-  const sysPayload = new TextEncoder().encode(JSON.stringify({
-    connected: true,
-    clientid: deviceId,
-  }));
-  mockClient.injectMessage(sysTopic, sysPayload);
-}
+import { useMockGenerators } from './useMockGenerators';
 
 export function useMqttConnect(): void {
   const selectedId = useDeviceStore((s) => s.selectedId);
-  const devices = useDeviceStore((s) => s.devices);
-  const acquiring = useCollectorStore((s) => s.acquiring);
-  const deviceOpened = useCollectorStore((s) => s.deviceOpened);
-
   const prevSelectedRef = useRef<string | null>(null);
-  const stopWaveformRef = useRef<(() => void) | null>(null);
-  const stopLowFreqRef = useRef<(() => void) | null>(null);
-  const sysInjectedRef = useRef<Set<string>>(new Set());
+
+  // Mock 模式：启动 $SYS 注入 + 波形/低频生成器
+  useMockGenerators();
 
   // ── 初始化：为所有 server 创建连接，注册 router ──
   useEffect(() => {
     const pool = getPool();
     const servers = useServerStore.getState().servers;
 
-    // 注册 router（须在 create 前完成，确保 onStateChange 监听已就位）
-    setupRouter(pool);
+    // 注册 router（返回清理函数，解决 StrictMode 双挂载导致监听器重复注册问题）
+    const teardownRouter = setupRouter(pool);
 
     // 连接状态 → store 同步
     const onStateChange = ({ serverId, state }: { serverId: string; state: string }) => {
@@ -55,18 +39,6 @@ export function useMqttConnect(): void {
 
       if (state === 'disconnected' || state === 'failed') {
         clearPendingRpcs();
-      }
-
-      // Mock 模式：注入 $SYS 使设备显示在线
-      if (MQTT_MODE === 'mock' && state === 'connected') {
-        const client = pool.getClient(serverId) as unknown as MockClient;
-        const allDevices = useDeviceStore.getState().devices;
-        for (const d of allDevices) {
-          if (!sysInjectedRef.current.has(d.id)) {
-            sysInjectedRef.current.add(d.id);
-            injectMockSysConnected(client, d.id);
-          }
-        }
       }
     };
 
@@ -99,27 +71,11 @@ export function useMqttConnect(): void {
     }
 
     return () => {
+      teardownRouter();
       pool.offStateChange(onStateChange);
-      stopWaveformRef.current?.();
-      stopLowFreqRef.current?.();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  // ── 新添加设备注入 Mock $SYS ──
-  useEffect(() => {
-    if (MQTT_MODE !== 'mock') return;
-    const pool = getPool();
-    for (const d of devices) {
-      if (sysInjectedRef.current.has(d.id)) continue;
-      sysInjectedRef.current.add(d.id);
-      const server = useServerStore.getState().servers.find((s) => s.id === d.serverId);
-      if (!server) continue;
-      const client = pool.getClient(server.id);
-      if (!client || !client.isConnected) continue;
-      injectMockSysConnected(client as unknown as MockClient, d.id);
-    }
-  }, [devices]);
 
   // ── 设备切换：管理常驻主题 + 跟随主题 ──
   useEffect(() => {
@@ -171,27 +127,4 @@ export function useMqttConnect(): void {
 
     prevSelectedRef.current = selectedId;
   }, [selectedId]);
-
-  // ── Mock 波形/低频生成器（由采集状态驱动） ──
-  useEffect(() => {
-    if (MQTT_MODE !== 'mock') return;
-
-    stopWaveformRef.current?.();
-    stopLowFreqRef.current?.();
-    stopWaveformRef.current = null;
-    stopLowFreqRef.current = null;
-
-    if (!selectedId || !deviceOpened || !acquiring) return;
-
-    const pool = getPool();
-    const device = useDeviceStore.getState().devices.find((d) => d.id === selectedId);
-    if (!device) return;
-
-    const client = pool.getClient(device.serverId);
-    if (!client || !client.isConnected) return;
-
-    const mockClient = client as unknown as MockClient;
-    stopWaveformRef.current = startMockWaveform(mockClient, selectedId);
-    stopLowFreqRef.current = startMockLowFreq(mockClient, selectedId);
-  }, [selectedId, deviceOpened, acquiring]);
 }

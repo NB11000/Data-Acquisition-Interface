@@ -53,6 +53,8 @@ class RealMqttAdapter implements MqttClientLike {
     this.client.end(force);
   }
 
+  injectMessage(_topic: string, _payload: Uint8Array): void {}
+
   get isConnected(): boolean {
     return this.client.connected;
   }

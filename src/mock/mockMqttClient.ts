@@ -1,3 +1,7 @@
+/**
+ * @deprecated 使用 `src/mqtt/mockClient.ts` 中的 MockMqttClient（实现 MqttClientLike 接口）替代。
+ * 此文件仅保留供弃用的 `src/mqtt/client.ts` 单连接路径使用。
+ */
 type MessageHandler = (topic: string, payload: Uint8Array) => void;
 
 interface MockSubscription {

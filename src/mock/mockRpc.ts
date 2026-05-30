@@ -1,5 +1,5 @@
 import type { CommandResult, SystemStateDto } from '../mqtt/types';
-import type { MockMqttClient } from './mockMqttClient';
+import type { MqttClientLike } from '../mqtt/mqttClientLike';
 
 // ── Per-device default state factory (Issue 10) ──
 
@@ -36,7 +36,7 @@ export function getMockState(machineId: string): SystemStateDto {
 }
 
 export function handleMockRpc(
-  mockClient: MockMqttClient,
+  mockClient: MqttClientLike,
   machineId: string,
   method: string,
   corrId: string,
@@ -127,5 +127,20 @@ export function handleMockRpc(
 
     const payload = new TextEncoder().encode(JSON.stringify(result));
     mockClient.injectMessage(responseTopic, payload);
+
+    // 模拟真实设备行为：RPC 成功后推送 state_changed 事件
+    if (result.success && method !== 'SYSTEM_STATE') {
+      const stateEvent = {
+        eventType: 'state_changed',
+        source: method.startsWith('collector') ? 'collector' : 'laser',
+        reason: method,
+        message: result.message,
+        state: getMockState(machineId),
+        timestamp: new Date().toISOString(),
+      };
+      const stateTopic = `daq/${machineId}/events/state_changed`;
+      const statePayload = new TextEncoder().encode(JSON.stringify(stateEvent));
+      setTimeout(() => mockClient.injectMessage(stateTopic, statePayload), 50);
+    }
   }, delay);
 }

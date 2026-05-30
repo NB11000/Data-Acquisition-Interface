@@ -9,6 +9,8 @@ export interface MqttClientLike {
   subscribe(topic: string): void;
   unsubscribe(topic: string): void;
   publish(topic: string, payload: string | Uint8Array): void;
+  /** 模拟注入消息（Mock 实现路由分发；Real 实现为 no-op） */
+  injectMessage(topic: string, payload: Uint8Array): void;
   end(force?: boolean): void;
   readonly isConnected: boolean;
 }

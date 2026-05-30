@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
-import { getMqttClient } from '../mqtt/client';
 import { sendRpcCommand as sendRpc } from '../mqtt/rpc';
 import { useDeviceStore } from '../stores/deviceStore';
+import { getPool } from '../mqtt/pool';
 import type { CommandResult } from '../mqtt/types';
 
 export function useRpcCommand(): {
@@ -12,8 +12,8 @@ export function useRpcCommand(): {
     if (!selectedId) {
       throw new Error('未选中设备');
     }
-    const client = getMqttClient();
-    return sendRpc(client, selectedId, method, payload);
+    const pool = getPool();
+    return sendRpc(pool, selectedId, method, payload);
   }, []);
 
   return { sendCommand };

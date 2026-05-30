@@ -1,6 +1,5 @@
 import type { ConnectionPool } from './connectionPool';
-import type { MqttClientLike } from './client';
-import type { MockMqttClient as OldMockMqttClient } from '../mock/mockMqttClient';
+import type { MqttClientLike } from './mqttClientLike';
 import { rpcRequestTopic } from './topics';
 import { generateGuid } from '../utils/id';
 import type { CommandResult } from './types';
@@ -87,7 +86,7 @@ export function sendRpcCommand(
     if (MQTT_MODE === 'mock') {
       const client = pool.getClient(serverId);
       if (client) {
-        handleMockRpc(client as unknown as OldMockMqttClient, machineId, method, corrId);
+        handleMockRpc(client, machineId, method, corrId);
       }
     } else {
       const data = JSON.stringify(payload ?? {});
@@ -121,7 +120,7 @@ async function sendRpcCommandLegacy(
     pendingRpcs.set(corrId, { resolve, reject, timeout });
 
     if (MQTT_MODE === 'mock') {
-      handleMockRpc(client as unknown as OldMockMqttClient, machineId, method, corrId);
+      handleMockRpc(client, machineId, method, corrId);
     } else {
       const data = JSON.stringify(payload ?? {});
       client.publish(topic, data);

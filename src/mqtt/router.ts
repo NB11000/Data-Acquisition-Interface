@@ -25,16 +25,16 @@ export function onSysDisconnected(cb: (serverId: string, clientId: string, conne
   _onSysDisconnected = cb;
 }
 
-/** 多连接版 Router：注册到 ConnectionPool 的 onMessage */
-export function setupRouter(pool: ConnectionPool): void {
-  // 监听连接状态变化：断开时清理该服务器的待处理 RPC
-  pool.onStateChange(({ serverId, state }) => {
+/** 多连接版 Router：注册到 ConnectionPool 的 onMessage。返回清理函数。 */
+export function setupRouter(pool: ConnectionPool): () => void {
+  const stateListener = ({ serverId, state }: { serverId: string; state: string }) => {
     if (state === 'reconnecting' || state === 'disconnected' || state === 'failed') {
       clearPendingRpcs();
     }
-  });
+  };
+  pool.onStateChange(stateListener);
 
-  pool.onMessage(({ serverId, topic, payload }) => {
+  const messageListener = ({ serverId, topic, payload }: { serverId: string; topic: string; payload: Uint8Array }) => {
     // 0) $SYS broker 事件 — 设备在线状态
     if (topic.startsWith('$SYS/brokers/')) {
       const parts = topic.split('/');
@@ -112,7 +112,13 @@ export function setupRouter(pool: ConnectionPool): void {
       const sample = JSON.parse(new TextDecoder().decode(payload)) as LowFreqSample;
       useDataStore.getState().append(sample);
     }
-  });
+  };
+  pool.onMessage(messageListener);
+
+  return () => {
+    pool.offStateChange(stateListener);
+    pool.offMessage(messageListener);
+  };
 }
 
 // ── 向后兼容：原单连接版本（标记 @deprecated） ──

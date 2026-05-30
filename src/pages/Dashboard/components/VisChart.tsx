@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useLayoutEffect, useRef } from 'react';
 import ReactECharts from 'echarts-for-react';
 import { useDataStore } from '../../../stores/dataStore';
 import { useContainerSize } from '../../../hooks/useResizeObserver';
@@ -37,7 +37,7 @@ export function VisChart() {
     dataZoom: [{ type: 'inside' as const }],
   };
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const instance = chartRef.current?.getEchartsInstance();
     if (!instance || samples.length === 0) return;
     const total = samples.length;

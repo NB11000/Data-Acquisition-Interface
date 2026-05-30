@@ -42,6 +42,23 @@ export class ConnectionPool {
       ctx.retryCount = 0;
       this.emitStateChange(server.id, 'connected');
       this.subscribeSysTopics(client);
+
+      // 重连后自动恢复该服务器下所有设备的常驻主题
+      const allDevices = useDeviceStore.getState().devices;
+      for (const d of allDevices) {
+        if (d.serverId === server.id) {
+          this.subscribeDevice(server.id, d.id);
+        }
+      }
+
+      // 重连后恢复当前选中设备的跟随主题
+      const selectedId = useDeviceStore.getState().selectedId;
+      if (selectedId) {
+        const selected = allDevices.find((d) => d.id === selectedId);
+        if (selected && selected.serverId === server.id) {
+          this.switchFollowing(server.id, null, selectedId);
+        }
+      }
     };
 
     client.onDisconnect = () => {
@@ -78,6 +95,8 @@ export class ConnectionPool {
     const ctx = this.servers.get(serverId);
     if (!ctx) return;
 
+    ctx.state = 'disconnected';
+    this.emitStateChange(serverId, 'disconnected');
     this.clearRetry(serverId);
     ctx.client.onConnect = null;
     ctx.client.onDisconnect = null;

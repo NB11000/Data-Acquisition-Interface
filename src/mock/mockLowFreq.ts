@@ -1,8 +1,8 @@
 import type { LowFreqSample } from '../mqtt/types';
-import type { MockMqttClient } from './mockMqttClient';
+import type { MqttClientLike } from '../mqtt/mqttClientLike';
 
 export function startMockLowFreq(
-  mockClient: MockMqttClient,
+  mockClient: MqttClientLike,
   machineId: string,
   intervalMs = 7000,
 ): () => void {
