@@ -1,0 +1,33 @@
+.serverRow {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  align-items: center;
+}
+
+.serverSelect {
+  flex: 1;
+}
+
+.tabContent {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-top: 4px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.field label {
+  font-size: 13px;
+  color: var(--text-secondary, #666);
+}
+
+.batchFooter {
+  margin-top: 12px;
+  text-align: right;
+}

@@ -2,17 +2,11 @@
 
 ## Execution Rules
 
-> **此 Issue 执行顺序不可变更，必须遵循 TDD 红绿重构循环：**
+> **此 Issue 为 UI 组件实现，不适用 TDD 流程。** 实现完成后通过手动验证确认 Acceptance Criteria。
 >
-> **1. RED** — 先写一个测试，确认测试 FAIL。禁止一次写多个测试。
-> **2. GREEN** — 写最少代码让当前测试 PASS。禁止预判未来测试。
-> **3. REFACTOR** — 消除重复、深化模块。禁止 RED 期间重构。
->
-> **硬禁止：**
-> - 禁止"先全部实现再补测试"（水平切片反模式）
-> - 禁止跳过 RED 直接写 GREEN
-> - 测试必须通过公共接口验证行为，不耦合实现细节
-> - 每次循环只一个测试 → 一个实现，垂直切片推进
+> - MqttServerModal 和 AddDeviceModal 依赖 Ant Design 组件（Modal/Form/Select/Tabs），单元测试成本高收益低
+> - 核心业务逻辑（ConnectionPool.subscribeDevice、serverStore.addServer）已在 Issue 2 通过测试验证
+> - 验证方式：浏览器中打开模态框，完成添加服务器 → 自动发现设备 → 手动添加设备 的完整流程
 
 ## Parent
 

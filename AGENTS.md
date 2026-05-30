@@ -77,3 +77,13 @@ Accessed via `src/env.ts` (`import.meta.env.VITE_*`).
 ### Tests
 
 Vitest is configured (`src/**/*.test.ts`) but **no test files exist yet**. Test infrastructure is in place — write tests under `src/` alongside the code they test.
+
+## 编码规范
+
+1. 全程使用中文交流、中文注释、中文解释，禁止英文无意义输出。
+2. 代码实现遵循最小必要原则，清晰简洁，不冗余、不堆砌、不花哨。
+3. 不写过度防御代码：仅处理常规异常与核心场景，不做无意义的极端校验。
+4. 函数功能单一，命名语义化，结构清晰，缩进规范。
+5. 中文注释要简洁明了。
+6. 优先输出可直接运行的完整代码，不输出半成品，不添加无关内容。
+7. 代码简洁易读，行数精简，复杂逻辑拆分，禁止冗余逻辑与重复代码。

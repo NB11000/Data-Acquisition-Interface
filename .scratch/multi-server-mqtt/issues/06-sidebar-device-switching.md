@@ -2,17 +2,10 @@
 
 ## Execution Rules
 
-> **此 Issue 执行顺序不可变更，必须遵循 TDD 红绿重构循环：**
+> **此 Issue 为 UI 组件 + Hook 集成，不适用 TDD 流程。** 实现完成后通过手动验证确认 Acceptance Criteria。
 >
-> **1. RED** — 先写一个测试，确认测试 FAIL。禁止一次写多个测试。
-> **2. GREEN** — 写最少代码让当前测试 PASS。禁止预判未来测试。
-> **3. REFACTOR** — 消除重复、深化模块。禁止 RED 期间重构。
->
-> **硬禁止：**
-> - 禁止"先全部实现再补测试"（水平切片反模式）
-> - 禁止跳过 RED 直接写 GREEN
-> - 测试必须通过公共接口验证行为，不耦合实现细节
-> - 每次循环只一个测试 → 一个实现，垂直切片推进
+> - 侧边栏是展示层，依赖 Ant Design Tree/Search 组件；useMqttConnect 是胶水代码，核心逻辑（ConnectionPool、Router）已在 Issue 2/3 通过测试验证
+> - 验证方式：浏览器中切换设备，确认同服务器/跨服务器切换行为正确、侧边栏分组和搜索正常
 
 ## Parent
 

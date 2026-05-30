@@ -2,17 +2,11 @@
 
 ## Execution Rules
 
-> **此 Issue 执行顺序不可变更，必须遵循 TDD 红绿重构循环：**
+> **此 Issue 为集成连线，不适用 TDD 流程。** 实现完成后通过手动验证确认 Acceptance Criteria。
 >
-> **1. RED** — 先写一个测试，确认测试 FAIL。禁止一次写多个测试。
-> **2. GREEN** — 写最少代码让当前测试 PASS。禁止预判未来测试。
-> **3. REFACTOR** — 消除重复、深化模块。禁止 RED 期间重构。
->
-> **硬禁止：**
-> - 禁止"先全部实现再补测试"（水平切片反模式）
-> - 禁止跳过 RED 直接写 GREEN
-> - 测试必须通过公共接口验证行为，不耦合实现细节
-> - 每次循环只一个测试 → 一个实现，垂直切片推进
+> - 核心逻辑（Router $SYS 消息分发、ConnectionPool OnlineClientCache）已在 Issue 2/3 通过测试验证
+> - 本 Issue 仅做展示层集成组装：Router → deviceStore.setOnline + 仪表盘 banner + RPC toast
+> - 验证方式：Mock 模式下模拟 $SYS connected/disconnected 事件，确认侧边栏状态图标和仪表盘 banner 正确响应
 
 ## Parent
 

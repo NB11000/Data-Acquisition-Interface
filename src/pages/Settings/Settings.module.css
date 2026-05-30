@@ -1,0 +1,101 @@
+.container {
+  padding: 20px 24px;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.section {
+  margin-bottom: 32px;
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.sectionTitle {
+  margin-bottom: 0 !important;
+}
+
+/* ── 服务器卡片列表 ── */
+
+.serverList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.serverCard {
+  border: 1px solid var(--border-color, #30363d);
+  border-radius: 6px;
+  background: var(--card-bg, #1a1a2e);
+}
+
+.serverRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.serverMain {
+  flex: 1;
+  min-width: 0;
+}
+
+.serverHeader {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.serverName {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.stateTag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+}
+
+.stateText {
+  color: var(--text-secondary, #a0a0b0);
+  white-space: nowrap;
+}
+
+.serverMeta {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  font-size: 12px;
+  color: var(--text-secondary, #a0a0b0);
+}
+
+.brokerUrl {
+  font-family: monospace;
+}
+
+.deviceCount {
+  white-space: nowrap;
+}
+
+.serverActions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  margin-left: 16px;
+}
+
+/* ── 设备表格 ── */
+
+.deviceTable {
+  border: 1px solid var(--border-color, #30363d);
+  border-radius: 6px;
+  overflow: hidden;
+}

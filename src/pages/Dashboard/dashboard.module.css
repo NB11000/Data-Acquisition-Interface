@@ -5,4 +5,20 @@
   padding: 12px;
   min-height: 0;
   overflow: hidden;
+  position: relative;
+}
+
+/* 连接断开 overlay banner */
+.disconnectedOverlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font-size: 14px;
+  text-align: center;
+  pointer-events: none;
 }

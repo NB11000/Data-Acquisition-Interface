@@ -1,22 +1,9 @@
-import mqtt, { type MqttClient } from 'mqtt';
+import { type MqttClient } from 'mqtt';
 import { MockMqttClient } from '../mock/mockMqttClient';
-import { MQTT_MODE, BROKER_URL, BROKER_USERNAME, BROKER_PASSWORD } from '../env';
+import { MQTT_MODE } from '../env';
+import type { MqttClientLike } from './mqttClientLike';
 
-// ── Unified interface (Issue 1) ──
-// Both MockMqttClient and RealMqttAdapter satisfy this shape so that
-// router / rpc / hooks never need to cast to a concrete implementation.
-
-export interface MqttClientLike {
-  onConnect: (() => void) | null;
-  onDisconnect: (() => void) | null;
-  onMessage: ((topic: string, payload: Uint8Array) => void) | null;
-  connect(): void;
-  subscribe(topic: string): void;
-  unsubscribe(topic: string): void;
-  publish(topic: string, payload: string | Uint8Array): void;
-  end(force?: boolean): void;
-  readonly isConnected: boolean;
-}
+export type { MqttClientLike } from './mqttClientLike';
 
 // ── Real MQTT adapter (Issue 1) ──
 // Wraps mqtt.js EventEmitter API so callers only deal with callback properties.
@@ -75,6 +62,7 @@ class RealMqttAdapter implements MqttClientLike {
 
 let client: MqttClientLike | null = null;
 
+/** @deprecated 使用 ConnectionPool 替代单例模式 */
 export function getMqttClient(): MqttClientLike {
   if (!client) {
     throw new Error('MQTT client not initialized. Call initMqttClient() first.');
@@ -82,11 +70,12 @@ export function getMqttClient(): MqttClientLike {
   return client;
 }
 
-/** Null-safe accessor used by hooks that need to survive StrictMode remounts. */
+/** @deprecated 使用 ConnectionPool 替代。Null-safe accessor used by hooks that need to survive StrictMode remounts. */
 export function getMqttClientSafely(): MqttClientLike | null {
   return client;
 }
 
+/** @deprecated 使用 ConnectionPool.create() 替代 */
 export function initMqttClient(clientId: string): MqttClientLike {
   if (MQTT_MODE === 'mock') {
     const mock = new MockMqttClient(clientId);
@@ -94,18 +83,10 @@ export function initMqttClient(clientId: string): MqttClientLike {
     return mock;
   }
 
-  const real = mqtt.connect(BROKER_URL, {
-    clientId,
-    username: BROKER_USERNAME,
-    password: BROKER_PASSWORD,
-    keepalive: 30,
-  });
-
-  const adapter = new RealMqttAdapter(real);
-  client = adapter;
-  return adapter;
+  throw new Error('Real 模式已迁移至 ConnectionPool，请使用 createDefaultFactory()');
 }
 
+/** @deprecated 使用 ConnectionPool.destroy() 替代 */
 export function destroyMqttClient(): void {
   if (client) {
     client.end(true);
