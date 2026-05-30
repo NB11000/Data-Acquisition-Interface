@@ -1,7 +1,7 @@
 # ADR 0001: 每设备独立 MQTT 配置
 
 **日期**: 2026-05-28
-**状态**: Accepted
+**状态**: Superseded by [ADR 0003](./0003-explicit-mqtt-server.md)
 
 ## 背景
 
