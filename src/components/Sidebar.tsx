@@ -54,7 +54,7 @@ export function Sidebar({ onAddDevice, onEditDevice }: Props) {
     return servers.map((srv) => ({
       server: srv,
       devices: devices.filter((d) => d.serverId === srv.id),
-      connectionState: (srv.connectionState || 'disconnected') as PoolConnectionState,
+      connectionState: (srv.connectionState ?? 'disconnected') as PoolConnectionState,
     }));
   }, [servers, devices]);
 

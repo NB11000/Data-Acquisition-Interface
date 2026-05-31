@@ -1,4 +1,4 @@
-export function parseWaveformBinary(buffer: ArrayBuffer): Float64Array {
+export function parseWaveformBinary(buffer: ArrayBufferLike): Float64Array {
   if (buffer.byteLength !== 8000) {
     console.warn(`[binary] Expected 8000 bytes, got ${buffer.byteLength}`);
     return new Float64Array(1000);

@@ -94,8 +94,8 @@ describe('RPC', () => {
     const e1 = vi.fn();
     const e2 = vi.fn();
 
-    map.set('corr-A', { resolve: r1, reject: e1, timeout: setTimeout(() => {}, 99999) });
-    map.set('corr-B', { resolve: r2, reject: e2, timeout: setTimeout(() => {}, 99999) });
+    map.set('corr-A', { resolve: r1, reject: e1, timeout: setTimeout(() => {}, 99999), serverId: 'test-server' });
+    map.set('corr-B', { resolve: r2, reject: e2, timeout: setTimeout(() => {}, 99999), serverId: 'test-server' });
 
     // 只 resolve corr-A
     map.get('corr-A')!.resolve({ success: true, code: 'OK', message: 'a', timestamp: '' });

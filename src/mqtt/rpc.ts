@@ -12,6 +12,7 @@ interface PendingRpc {
   resolve: (result: CommandResult) => void;
   reject: (error: Error) => void;
   timeout: ReturnType<typeof setTimeout>;
+  serverId: string;
 }
 
 const pendingRpcs = new Map<string, PendingRpc>();
@@ -32,8 +33,13 @@ export function tryResolveRpc(topic: string, payload: Uint8Array): boolean {
   if (pending) {
     clearTimeout(pending.timeout);
     pendingRpcs.delete(corrId);
-    const result = JSON.parse(new TextDecoder().decode(payload)) as CommandResult;
-    pending.resolve(result);
+    try {
+      const result = JSON.parse(new TextDecoder().decode(payload)) as CommandResult;
+      pending.resolve(result);
+    } catch {
+      console.warn(`RPC 响应解析失败: corrId=${corrId}, topic=${topic}`);
+      pending.reject(new Error('RPC 响应解析失败'));
+    }
   }
   return true;
 }
@@ -81,7 +87,7 @@ export function sendRpcCommand(
       reject(new Error('RPC 响应超时 (10s)'));
     }, 10000);
 
-    pendingRpcs.set(corrId, { resolve, reject, timeout });
+    pendingRpcs.set(corrId, { resolve, reject, timeout, serverId });
 
     if (MQTT_MODE === 'mock') {
       const client = pool.getClient(serverId);
@@ -117,7 +123,7 @@ async function sendRpcCommandLegacy(
       reject(new Error('RPC 响应超时 (10s)'));
     }, 10000);
 
-    pendingRpcs.set(corrId, { resolve, reject, timeout });
+    pendingRpcs.set(corrId, { resolve, reject, timeout, serverId: '' });
 
     if (MQTT_MODE === 'mock') {
       handleMockRpc(client, machineId, method, corrId);
@@ -130,10 +136,15 @@ async function sendRpcCommandLegacy(
 
 // ── 清理 ──
 
-export function clearPendingRpcs(): void {
+export function clearPendingRpcs(serverId?: string): void {
+  const toDelete: string[] = [];
   for (const [corrId, pending] of pendingRpcs) {
+    if (serverId !== undefined && pending.serverId !== serverId) continue;
     clearTimeout(pending.timeout);
     pending.reject(new Error('CONNECTION_LOST: 服务器连接已断开'));
+    toDelete.push(corrId);
   }
-  pendingRpcs.clear();
+  for (const corrId of toDelete) {
+    pendingRpcs.delete(corrId);
+  }
 }

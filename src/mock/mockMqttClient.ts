@@ -75,6 +75,7 @@ export class MockMqttClient {
   /** no-op for interface compliance */
   end(_force?: boolean): void {
     this.connected = false;
+    this.subscriptions = [];
   }
 
   onConnect: (() => void) | null = null;

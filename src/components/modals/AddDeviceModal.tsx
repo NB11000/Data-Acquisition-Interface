@@ -240,6 +240,7 @@ export function AddDeviceModal({ open, onClose }: Props) {
             options={serverOptions}
           />
           <Button
+            className={styles.addBtn}
             icon={<PlusOutlined />}
             onClick={() => setServerModalOpen(true)}
           >

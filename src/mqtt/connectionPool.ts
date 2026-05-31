@@ -33,6 +33,10 @@ export class ConnectionPool {
   }
 
   create(server: MqttServer): void {
+    if (this.servers.has(server.id)) {
+      this.destroy(server.id);
+    }
+
     const client = this.factory.createConnection(server);
 
     client.onConnect = () => {
@@ -83,7 +87,7 @@ export class ConnectionPool {
     this.servers.set(server.id, ctx);
     client.connect();
 
-    if (client.isConnected) {
+    if (ctx.state !== 'connected' && client.isConnected) {
       ctx.state = 'connected';
       ctx.retryCount = 0;
       this.emitStateChange(server.id, 'connected');
@@ -104,6 +108,7 @@ export class ConnectionPool {
     ctx.client.end(true);
 
     this.servers.delete(serverId);
+    this._onlineClients.delete(serverId);
   }
 
   update(server: MqttServer): void {
@@ -122,10 +127,11 @@ export class ConnectionPool {
 
     if (!needsReconnect) return;
 
+    const deviceIds = [...ctx.deviceIds];
     this.destroy(server.id);
     this.create(server);
 
-    for (const deviceId of ctx.deviceIds) {
+    for (const deviceId of deviceIds) {
       this.subscribeDevice(server.id, deviceId);
     }
   }
@@ -174,9 +180,7 @@ export class ConnectionPool {
     const ctx = this.servers.get(serverId);
     if (!ctx) return;
 
-    const clientAlive = ctx.client.isConnected;
-
-    if (oldMachineId && clientAlive) {
+    if (oldMachineId) {
       const followTopics = [
         `daq/${oldMachineId}/waveform/ch1`,
         `daq/${oldMachineId}/waveform/ch2`,

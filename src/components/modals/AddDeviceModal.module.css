@@ -7,6 +7,12 @@
 
 .serverSelect {
   flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.addBtn {
+  flex-shrink: 0;
 }
 
 .tabContent {

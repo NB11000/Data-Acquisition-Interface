@@ -255,9 +255,10 @@ function createPendingRpc(): { corrId: string; rpcPromise: Promise<unknown> } {
   const corrId = `test-corr-${Math.random().toString(36).slice(2)}`;
   const rpcPromise = new Promise<unknown>((resolve) => {
     pendingRpcsForTest().set(corrId, {
-      resolve,
+      resolve: resolve as any,
       reject: () => {},
       timeout: setTimeout(() => {}, 99999),
+      serverId: 'test-server',
     });
   });
   return { corrId, rpcPromise };

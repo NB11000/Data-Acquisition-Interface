@@ -93,6 +93,13 @@ export function useMqttConnect(): void {
       ? useDeviceStore.getState().devices.find((d) => d.id === prevId)
       : null;
 
+    // 先清空数据 stores，避免残留旧数据被新设备渲染
+    useCollectorStore.getState().reset();
+    useLaserStore.getState().reset();
+    useWaveformStore.getState().clear();
+    useDataStore.getState().clear();
+    useAlarmStore.getState().clear();
+
     if (prevDevice && prevDevice.serverId === device.serverId) {
       // 同服务器 → 复用连接，切换主题
       pool.subscribeDevice(device.serverId, selectedId);
@@ -117,13 +124,6 @@ export function useMqttConnect(): void {
         }
       })
       .catch(() => {});
-
-    // 清空数据 stores
-    useCollectorStore.getState().reset();
-    useLaserStore.getState().reset();
-    useWaveformStore.getState().clear();
-    useDataStore.getState().clear();
-    useAlarmStore.getState().clear();
 
     prevSelectedRef.current = selectedId;
   }, [selectedId]);

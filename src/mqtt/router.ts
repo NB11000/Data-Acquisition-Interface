@@ -29,7 +29,7 @@ export function onSysDisconnected(cb: (serverId: string, clientId: string, conne
 export function setupRouter(pool: ConnectionPool): () => void {
   const stateListener = ({ serverId, state }: { serverId: string; state: string }) => {
     if (state === 'reconnecting' || state === 'disconnected' || state === 'failed') {
-      clearPendingRpcs();
+      clearPendingRpcs(serverId);
     }
   };
   pool.onStateChange(stateListener);
@@ -84,33 +84,49 @@ export function setupRouter(pool: ConnectionPool): () => void {
 
     // 2) Domain 主题分发（顺序: state_changed → will → alarm → waveform → lowfreq）
     if (topic.includes('/events/state_changed')) {
-      const event = JSON.parse(new TextDecoder().decode(payload)) as StateChangedEvent;
-      if (event.state?.collector) {
-        useCollectorStore.getState().applyState(event.state.collector);
-      }
-      if (event.state?.laser) {
-        useLaserStore.getState().applyState(event.state.laser);
-      }
-      const mqttState = useMqttStore.getState();
-      if (mqttState.willReceived) {
-        mqttState.clearWill();
+      try {
+        const event = JSON.parse(new TextDecoder().decode(payload)) as StateChangedEvent;
+        if (event.state?.collector) {
+          useCollectorStore.getState().applyState(event.state.collector);
+        }
+        if (event.state?.laser) {
+          useLaserStore.getState().applyState(event.state.laser);
+        }
+        const mqttState = useMqttStore.getState();
+        if (mqttState.willReceived) {
+          mqttState.clearWill();
+        }
+      } catch {
+        // 解析失败，静默跳过这条消息
       }
     } else if (topic.includes('/events/will')) {
-      const will = JSON.parse(new TextDecoder().decode(payload)) as WillMessage;
-      const machineId = topic.split('/')[1];
-      useMqttStore.getState().setWill(machineId);
+      try {
+        const will = JSON.parse(new TextDecoder().decode(payload)) as WillMessage;
+        const machineId = topic.split('/')[1];
+        useMqttStore.getState().setWill(machineId);
+      } catch {
+        // 解析失败，静默跳过这条消息
+      }
     } else if (topic.includes('/events/device_alarm')) {
-      const alarm = JSON.parse(new TextDecoder().decode(payload)) as DeviceAlarm;
-      useAlarmStore.getState().add(alarm);
+      try {
+        const alarm = JSON.parse(new TextDecoder().decode(payload)) as DeviceAlarm;
+        useAlarmStore.getState().add(alarm);
+      } catch {
+        // 解析失败，静默跳过这条消息
+      }
     } else if (topic.includes('/waveform/ch1')) {
-      const data = parseWaveformBinary(payload.buffer as ArrayBuffer);
+      const data = parseWaveformBinary(payload.buffer);
       useWaveformStore.getState().appendCh1(data, Date.now());
     } else if (topic.includes('/waveform/ch2')) {
-      const data = parseWaveformBinary(payload.buffer as ArrayBuffer);
+      const data = parseWaveformBinary(payload.buffer);
       useWaveformStore.getState().appendCh2(data, Date.now());
     } else if (topic.includes('/lowfreq')) {
-      const sample = JSON.parse(new TextDecoder().decode(payload)) as LowFreqSample;
-      useDataStore.getState().append(sample);
+      try {
+        const sample = JSON.parse(new TextDecoder().decode(payload)) as LowFreqSample;
+        useDataStore.getState().append(sample);
+      } catch {
+        // 解析失败，静默跳过这条消息
+      }
     }
   };
   pool.onMessage(messageListener);
@@ -142,33 +158,49 @@ export function setupMqttRouter(client: MqttClientLike): void {
     if (tryResolveRpc(topic, payload)) return;
 
     if (topic.includes('/waveform/ch1')) {
-      const data = parseWaveformBinary(payload.buffer as ArrayBuffer);
+      const data = parseWaveformBinary(payload.buffer);
       useWaveformStore.getState().appendCh1(data, Date.now());
     } else if (topic.includes('/waveform/ch2')) {
-      const data = parseWaveformBinary(payload.buffer as ArrayBuffer);
+      const data = parseWaveformBinary(payload.buffer);
       useWaveformStore.getState().appendCh2(data, Date.now());
     } else if (topic.includes('/events/state_changed')) {
-      const event = JSON.parse(new TextDecoder().decode(payload)) as StateChangedEvent;
-      if (event.state?.collector) {
-        useCollectorStore.getState().applyState(event.state.collector);
-      }
-      if (event.state?.laser) {
-        useLaserStore.getState().applyState(event.state.laser);
-      }
-      const mqttState = useMqttStore.getState();
-      if (mqttState.willReceived) {
-        mqttState.clearWill();
+      try {
+        const event = JSON.parse(new TextDecoder().decode(payload)) as StateChangedEvent;
+        if (event.state?.collector) {
+          useCollectorStore.getState().applyState(event.state.collector);
+        }
+        if (event.state?.laser) {
+          useLaserStore.getState().applyState(event.state.laser);
+        }
+        const mqttState = useMqttStore.getState();
+        if (mqttState.willReceived) {
+          mqttState.clearWill();
+        }
+      } catch {
+        // 解析失败，静默跳过这条消息
       }
     } else if (topic.includes('/events/will')) {
-      const will = JSON.parse(new TextDecoder().decode(payload)) as WillMessage;
-      const machineId = topic.split('/')[1];
-      useMqttStore.getState().setWill(machineId);
+      try {
+        const will = JSON.parse(new TextDecoder().decode(payload)) as WillMessage;
+        const machineId = topic.split('/')[1];
+        useMqttStore.getState().setWill(machineId);
+      } catch {
+        // 解析失败，静默跳过这条消息
+      }
     } else if (topic.includes('/events/device_alarm')) {
-      const alarm = JSON.parse(new TextDecoder().decode(payload)) as DeviceAlarm;
-      useAlarmStore.getState().add(alarm);
+      try {
+        const alarm = JSON.parse(new TextDecoder().decode(payload)) as DeviceAlarm;
+        useAlarmStore.getState().add(alarm);
+      } catch {
+        // 解析失败，静默跳过这条消息
+      }
     } else if (topic.includes('/lowfreq')) {
-      const sample = JSON.parse(new TextDecoder().decode(payload)) as LowFreqSample;
-      useDataStore.getState().append(sample);
+      try {
+        const sample = JSON.parse(new TextDecoder().decode(payload)) as LowFreqSample;
+        useDataStore.getState().append(sample);
+      } catch {
+        // 解析失败，静默跳过这条消息
+      }
     }
   };
 }

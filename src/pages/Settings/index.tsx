@@ -10,6 +10,9 @@ import {
 import { getPool } from '../../mqtt/pool';
 import { useServerStore, type MqttServer, type PoolConnectionState } from '../../stores/serverStore';
 import { useDeviceStore, type Device } from '../../stores/deviceStore';
+import { useWaveformStore } from '../../stores/waveformStore';
+import { useDataStore } from '../../stores/dataStore';
+import { useAlarmStore } from '../../stores/alarmStore';
 import { MqttServerModal } from '../../components/modals/MqttServerModal';
 import styles from './Settings.module.css';
 
@@ -259,7 +262,15 @@ export default function Settings() {
                         type="text"
                         danger
                         icon={<DeleteOutlined />}
-                        onClick={() => removeDeviceFromStore(d.id)}
+                        onClick={() => {
+                          pool.unsubscribeDevice(d.serverId, d.id);
+                          if (d.id === useDeviceStore.getState().selectedId) {
+                            useWaveformStore.getState().clear();
+                            useDataStore.getState().clear();
+                            useAlarmStore.getState().clear();
+                          }
+                          removeDeviceFromStore(d.id);
+                        }}
                       />
                     </td>
                   </tr>

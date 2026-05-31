@@ -8,8 +8,6 @@ import type { MqttClientLike } from '../mqtt/mqttClientLike';
 import { startMockWaveform } from '../mock/mockWaveform';
 import { startMockLowFreq } from '../mock/mockLowFreq';
 
-const sysInjectedRef: { current: Set<string> } = { current: new Set() };
-
 function injectMockSysConnected(client: MqttClientLike, deviceId: string): void {
   const sysTopic = `$SYS/brokers/emqx/clients/${deviceId}/connected`;
   const sysPayload = new TextEncoder().encode(JSON.stringify({
@@ -27,6 +25,7 @@ export function useMockGenerators(): void {
   const devices = useDeviceStore((s) => s.devices);
   const acquiring = useCollectorStore((s) => s.acquiring);
   const deviceOpened = useCollectorStore((s) => s.deviceOpened);
+  const sysInjectedRef = useRef(new Set<string>());
 
   // ── 连接建立时注入 $SYS 使设备显示在线 ──
   useEffect(() => {
