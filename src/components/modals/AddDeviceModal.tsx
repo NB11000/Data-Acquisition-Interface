@@ -25,9 +25,6 @@ export function AddDeviceModal({ open, onClose }: Props) {
   const [deviceName, setDeviceName] = useState('');
   const [selectedMachines, setSelectedMachines] = useState<string[]>([]);
 
-  // 服务器列表为空 → 显示服务器配置界面
-  const showServerSetup = servers.length === 0 && !serverModalOpen;
-
   // 重置状态
   useEffect(() => {
     if (!open) return;
@@ -136,17 +133,6 @@ export function AddDeviceModal({ open, onClose }: Props) {
     },
   ];
 
-  // 零服务器引导：直接展示 MqttServerModal
-  if (showServerSetup) {
-    return (
-      <MqttServerModal
-        open={open}
-        onClose={onClose}
-        onSuccess={handleServerAdded}
-      />
-    );
-  }
-
   const serverOptions = servers.map((s) => ({
     value: s.id,
     label: `${s.name} (${s.brokerUrl}:${s.port})`,
@@ -162,6 +148,7 @@ export function AddDeviceModal({ open, onClose }: Props) {
             <label>Device ID</label>
             <Input
               placeholder="如：daq-srv-01"
+              disabled={!selectedServerId}
               value={machineId}
               onChange={(e) => setMachineId(e.target.value)}
               onPressEnter={handleManualAdd}
@@ -171,12 +158,13 @@ export function AddDeviceModal({ open, onClose }: Props) {
             <label>设备名称</label>
             <Input
               placeholder="如：一号高塔节点"
+              disabled={!selectedServerId}
               value={deviceName}
               onChange={(e) => setDeviceName(e.target.value)}
               onPressEnter={handleManualAdd}
             />
           </div>
-          <Button type="primary" block onClick={handleManualAdd}>
+          <Button type="primary" block disabled={!selectedServerId || !machineId.trim()} onClick={handleManualAdd}>
             添加
           </Button>
         </div>
@@ -231,10 +219,12 @@ export function AddDeviceModal({ open, onClose }: Props) {
         width={520}
         destroyOnClose
       >
+        <div className={styles.sectionTitle}>MQTT 服务器</div>
         <div className={styles.serverRow}>
           <Select
             className={styles.serverSelect}
-            placeholder="选择 MQTT 服务器"
+            placeholder={servers.length === 0 ? '请先添加 MQTT 服务器' : '选择 MQTT 服务器'}
+            disabled={servers.length === 0}
             value={selectedServerId}
             onChange={(v) => setSelectedServerId(v)}
             options={serverOptions}
@@ -248,6 +238,7 @@ export function AddDeviceModal({ open, onClose }: Props) {
           </Button>
         </div>
 
+        <div className={styles.sectionTitle}>设备信息</div>
         <Tabs
           activeKey={activeTab}
           onChange={setActiveTab}

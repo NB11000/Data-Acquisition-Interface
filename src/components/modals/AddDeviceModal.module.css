@@ -5,6 +5,13 @@
   align-items: center;
 }
 
+.sectionTitle {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary, #666);
+  margin-bottom: 8px;
+}
+
 .serverSelect {
   flex: 1;
   min-width: 0;

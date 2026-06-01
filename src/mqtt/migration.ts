@@ -66,17 +66,22 @@ export function runMigration(): boolean {
   const brokers = extractUniqueBrokers(oldDevices);
   if (brokers.length === 0) return false;
 
-  // 生成服务器列表
-  const servers = brokers.map((b, i) => ({
-    id: generateGuid(),
-    name: `默认服务器 ${i + 1}`,
-    brokerUrl: b.brokerUrl,
-    port: b.port,
-    username: b.username,
-    password: b.password,
-    tls: b.tls,
-    connected: false,
-  }));
+  // 生成服务器列表（根据旧 tls 标志补全协议前缀）
+  const servers = brokers.map((b, i) => {
+    let url = b.brokerUrl;
+    if (!/^mqtts?:\/\//.test(url)) {
+      url = (b.tls ? 'mqtts://' : 'mqtt://') + url;
+    }
+    return {
+      id: generateGuid(),
+      name: `默认服务器 ${i + 1}`,
+      brokerUrl: url,
+      port: b.port,
+      username: b.username,
+      password: b.password,
+      connected: false,
+    };
+  });
 
   // 构建 broker→serverId 映射
   const brokerKeyToServerId = new Map<string, string>();

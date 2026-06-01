@@ -7,7 +7,7 @@ const tabs = [
   { key: '/dashboard', icon: <DashboardOutlined />, label: '数据中心' },
   { key: '/alerts', icon: <BellOutlined />, label: '告警中心' },
   { key: '/history', icon: <HistoryOutlined />, label: '历史数据' },
-  { key: '/settings', icon: <SettingOutlined />, label: '系统设置' },
+  { key: '/settings', icon: <SettingOutlined />, label: '设备管理' },
   { key: '/logs', icon: <FileTextOutlined />, label: '日志查看' },
 ];
 

@@ -27,7 +27,7 @@ function createSpyFactory(): SpyFactory {
 function makeServer(overrides: Partial<MqttServer> = {}): MqttServer {
   return {
     id: 's1', name: 'test', brokerUrl: 'mqtt://localhost', port: 1883,
-    username: '', password: '', tls: false, connected: false,
+    username: '', password: '', connected: false,
     ...overrides,
   };
 }

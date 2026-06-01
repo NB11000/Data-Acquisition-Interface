@@ -20,7 +20,6 @@ export async function testConnection(
   port: number,
   username: string,
   password: string,
-  tls: boolean,
 ): Promise<boolean> {
   const factory = createDefaultFactory();
   const server: MqttServer = {
@@ -29,7 +28,6 @@ export async function testConnection(
     brokerUrl,
     port,
     username,
-    tls,
     password,
     connected: false,
   };

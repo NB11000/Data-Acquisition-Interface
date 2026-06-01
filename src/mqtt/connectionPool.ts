@@ -120,8 +120,7 @@ export class ConnectionPool {
       oldServer.brokerUrl !== server.brokerUrl ||
       oldServer.port !== server.port ||
       oldServer.username !== server.username ||
-      oldServer.password !== server.password ||
-      oldServer.tls !== server.tls;
+      oldServer.password !== server.password;
 
     ctx.server = server;
 

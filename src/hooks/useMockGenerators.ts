@@ -33,7 +33,16 @@ export function useMockGenerators(): void {
     const servers = useServerStore.getState().servers;
 
     const onStateChange = ({ serverId, state }: { serverId: string; state: string }) => {
-      if (state !== 'connected') return;
+      if (state !== 'connected') {
+        // 断连/重连中/失败时清空该服务器下设备的注入记录，重连后重新注入 $SYS
+        const allDevices = useDeviceStore.getState().devices;
+        for (const d of allDevices) {
+          if (d.serverId === serverId) {
+            sysInjectedRef.current.delete(d.id);
+          }
+        }
+        return;
+      }
       const client = pool.getClient(serverId);
       if (!client?.isConnected) return;
       const allDevices = useDeviceStore.getState().devices;

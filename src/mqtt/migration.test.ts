@@ -79,18 +79,76 @@ describe('runMigration', () => {
       port: 8883,
       username: 'user1',
       password: 'pass1',
-      tls: true,
       connected: false,
     });
+    expect(servers[0].tls).toBeUndefined();
     expect(servers[1]).toMatchObject({
       name: '默认服务器 2',
       brokerUrl: 'mqtts://broker2.example.com:1883',
       port: 1883,
       username: 'user2',
       password: 'pass2',
-      tls: false,
       connected: false,
     });
+    expect(servers[1].tls).toBeUndefined();
+  });
+
+  it('迁移时根据旧 tls 标志补全 brokerUrl 协议前缀', () => {
+    const devicesWithoutPrefix: LegacyDevice[] = [
+      {
+        id: 'daq-04',
+        name: 'TLS设备',
+        brokerUrl: 'broker-tls.example.com',
+        port: 8883,
+        username: 'u1',
+        password: 'p1',
+        tls: true,
+      },
+      {
+        id: 'daq-05',
+        name: '非TLS设备',
+        brokerUrl: 'broker-notls.example.com',
+        port: 1883,
+        username: 'u2',
+        password: 'p2',
+        tls: false,
+      },
+    ];
+
+    storage.setItem('devices', JSON.stringify(devicesWithoutPrefix));
+
+    runMigration();
+
+    const servers = JSON.parse(storage.getItem('mqttServers')!);
+    expect(servers).toHaveLength(2);
+
+    const tlsServer = servers.find((s: any) => s.port === 8883);
+    expect(tlsServer.brokerUrl).toBe('mqtts://broker-tls.example.com');
+
+    const noTlsServer = servers.find((s: any) => s.port === 1883);
+    expect(noTlsServer.brokerUrl).toBe('mqtt://broker-notls.example.com');
+  });
+
+  it('brokerUrl 已有协议前缀时不重复添加', () => {
+    const devicesWithPrefix: LegacyDevice[] = [
+      {
+        id: 'daq-06',
+        name: '已有前缀设备',
+        brokerUrl: 'mqtts://already-has-prefix.example.com',
+        port: 8883,
+        username: 'u1',
+        password: 'p1',
+        tls: false,
+      },
+    ];
+
+    storage.setItem('devices', JSON.stringify(devicesWithPrefix));
+
+    runMigration();
+
+    const servers = JSON.parse(storage.getItem('mqttServers')!);
+    expect(servers).toHaveLength(1);
+    expect(servers[0].brokerUrl).toBe('mqtts://already-has-prefix.example.com');
   });
 
   it('device.serverId 应指向对应 server 的 id', () => {

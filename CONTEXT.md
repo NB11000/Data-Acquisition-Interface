@@ -36,13 +36,13 @@ _Avoid_: 连接工厂
 interface MqttServer {
   id: string;            // 自生成 UUID
   name: string;          // 显示名称，如"生产环境"
-  brokerUrl: string;     // 含协议，如 mqtts://emqx.example.cn
-  port: number;          // 1883 或 8883
+  brokerUrl: string;     // 含协议前缀，支持 mqtt:// mqtts:// ws:// wss://（必填，无默认值）
+  port: number;          // 1883 或 8883（必填，无默认值）
   username: string;
   password: string;
-  tls: boolean;
-  caCert?: string;       // CA 证书 PEM 内容
-  isConnected: boolean | null;  // 运行时状态
+  caCert?: string;       // CA 证书 PEM 内容；存在即视为启用 TLS
+  connected: boolean;    // 运行时是否已连接（store 同步自 pool 状态）
+  connectionState?: PoolConnectionState;  // 细粒度连接状态
 }
 ```
 

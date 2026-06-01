@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import {
-  Modal, Form, Input, InputNumber, Select, Switch, Button, Upload, message, Space,
+  Modal, Form, Input, InputNumber, Switch, Button, Upload, message, Space,
 } from 'antd';
 import { UploadOutlined } from '@ant-design/icons';
 import { useServerStore, type MqttServer } from '../../stores/serverStore';
@@ -21,6 +21,7 @@ export function MqttServerModal({ open, onClose, onSuccess, server }: Props) {
   const [testing, setTesting] = useState(false);
   const [saving, setSaving] = useState(false);
   const [caCert, setCaCert] = useState('');
+  const [tlsEnabled, setTlsEnabled] = useState(false);
 
   const addServer = useServerStore((s) => s.addServer);
   const updateServer = useServerStore((s) => s.updateServer);
@@ -37,12 +38,13 @@ export function MqttServerModal({ open, onClose, onSuccess, server }: Props) {
         port: server.port,
         username: server.username,
         password: server.password,
-        tls: server.tls,
       });
       setCaCert(server.caCert ?? '');
+      setTlsEnabled(!!server.caCert);
     } else {
       form.resetFields();
       setCaCert('');
+      setTlsEnabled(false);
     }
   }, [open, server, form]);
 
@@ -55,7 +57,6 @@ export function MqttServerModal({ open, onClose, onSuccess, server }: Props) {
         values.port,
         values.username,
         values.password,
-        values.tls ?? false,
       );
       if (ok) {
         message.success('连接测试成功');
@@ -74,6 +75,19 @@ export function MqttServerModal({ open, onClose, onSuccess, server }: Props) {
       const values = await form.validateFields();
       setSaving(true);
 
+      const isEncryptedUrl = values.brokerUrl.startsWith('mqtts://') || values.brokerUrl.startsWith('wss://');
+
+      if (tlsEnabled && !isEncryptedUrl) {
+        message.warning('TLS 已开启，Broker 地址必须以 mqtts:// 或 wss:// 开头');
+        setSaving(false);
+        return;
+      }
+      if (!tlsEnabled && isEncryptedUrl) {
+        message.warning('TLS 未开启，Broker 地址必须以 mqtt:// 或 ws:// 开头');
+        setSaving(false);
+        return;
+      }
+
       const data: MqttServer = {
         id: server?.id ?? generateGuid(),
         name: values.name,
@@ -81,7 +95,6 @@ export function MqttServerModal({ open, onClose, onSuccess, server }: Props) {
         port: values.port,
         username: values.username,
         password: values.password,
-        tls: values.tls ?? false,
         connected: false,
         caCert: caCert || undefined,
       };
@@ -137,7 +150,7 @@ export function MqttServerModal({ open, onClose, onSuccess, server }: Props) {
       <Form
         form={form}
         layout="vertical"
-        initialValues={{ port: 8883, tls: false }}
+        initialValues={{}}
         className={styles.form}
       >
         <Form.Item
@@ -151,22 +164,42 @@ export function MqttServerModal({ open, onClose, onSuccess, server }: Props) {
         <Form.Item
           name="brokerUrl"
           label="Broker 地址"
-          rules={[{ required: true, message: '请输入 Broker 地址' }]}
+          extra="请包含协议前缀并去掉端口，如 mqtts://host.com 或 wss://host.com"
+          rules={[
+            { required: true, message: '请输入 Broker 地址' },
+            {
+              pattern: /^(mqtts?|wss?):\/\/.+/,
+              message: '必须以 mqtt://、mqtts://、 ws:// 或 wss:// 开头',
+            },
+            {
+              validator: (_, v) => {
+                if (typeof v === 'string' && /:\d+/.test(v)) {
+                  return Promise.reject(new Error('端口请填写在下方端口号字段'));
+                }
+                return Promise.resolve();
+              },
+            },
+          ]}
         >
-          <Input placeholder="如：z0d131fe.ala.cn-hangzhou.emqxsl.cn" />
+          <Input placeholder="如：mqtts://z0d131fe.ala.cn-hangzhou.emqxsl.cn" />
         </Form.Item>
 
         <Form.Item
           name="port"
           label="端口号"
-          rules={[{ required: true, message: '请选择端口号' }]}
+          rules={[
+            { required: true, message: '请输入端口号' },
+            {
+              validator: (_, v) => {
+                if (v === null || v === undefined || v === '') return Promise.reject(new Error('请输入端口号'));
+                const n = Number(v);
+                if (isNaN(n) || n < 1 || n > 65535) return Promise.reject(new Error('端口号范围 1-65535'));
+                return Promise.resolve();
+              },
+            },
+          ]}
         >
-          <Select
-            options={[
-              { value: 1883, label: '1883 (mqtt)' },
-              { value: 8883, label: '8883 (mqtts)' },
-            ]}
-          />
+          <InputNumber placeholder="如：1883 或 8883" min={1} max={65535} style={{ width: '100%' }} />
         </Form.Item>
 
         <Form.Item name="username" label="用户名">
@@ -177,8 +210,8 @@ export function MqttServerModal({ open, onClose, onSuccess, server }: Props) {
           <Input.Password placeholder="选填" />
         </Form.Item>
 
-        <Form.Item name="tls" label="TLS 加密" valuePropName="checked">
-          <Switch />
+        <Form.Item label="TLS 加密">
+          <Switch checked={tlsEnabled} onChange={setTlsEnabled} />
         </Form.Item>
 
         <Form.Item label="CA 证书（.crt / .pem）">
@@ -187,9 +220,10 @@ export function MqttServerModal({ open, onClose, onSuccess, server }: Props) {
             fileList={uploadFileList}
             maxCount={1}
             accept=".crt,.pem"
+            disabled={!tlsEnabled}
             onRemove={() => setCaCert('')}
           >
-            <Button icon={<UploadOutlined />}>选择文件</Button>
+            <Button icon={<UploadOutlined />} disabled={!tlsEnabled}>选择文件</Button>
           </Upload>
         </Form.Item>
 

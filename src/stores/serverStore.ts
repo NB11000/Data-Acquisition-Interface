@@ -10,7 +10,6 @@ export interface MqttServer {
   port: number;
   username: string;
   password: string;
-  tls: boolean;
   connected: boolean;
   connectionState?: PoolConnectionState;
   caCert?: string;
