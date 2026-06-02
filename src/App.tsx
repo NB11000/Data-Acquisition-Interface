@@ -39,7 +39,7 @@ export default function App() {
             <Route path="logs" element={<Logs />} />
           </Route>
         </Routes>
-      </BrowserRouter>
+      </HashRouter>
     </ConfigProvider>
   );
 }
