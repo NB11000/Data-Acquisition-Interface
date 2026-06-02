@@ -28,7 +28,7 @@ export default function App() {
         token: { colorPrimary: '#1890ff', borderRadius: 4 },
       }}
     >
-      <BrowserRouter>
+      <BrowserRouter basename={import.meta.env.BASE_URL.replace(/\/$/, '')}>
         <Routes>
           <Route path="/" element={<AppLayout />}>
             <Route index element={<Navigate to="/dashboard" />} />
