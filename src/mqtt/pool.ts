@@ -17,19 +17,19 @@ export type { ConnectionPool };
 /** 测试连接：用临时 client 尝试建连 */
 export async function testConnection(
   brokerUrl: string,
-  port: number,
   username: string,
   password: string,
+  caCert?: string,
 ): Promise<boolean> {
   const factory = createDefaultFactory();
   const server: MqttServer = {
     id: generateGuid(),
     name: 'test',
     brokerUrl,
-    port,
     username,
     password,
     connected: false,
+    caCert,
   };
   const client = factory.createConnection(server);
 

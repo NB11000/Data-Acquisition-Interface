@@ -66,9 +66,11 @@ export function runMigration(): boolean {
   const brokers = extractUniqueBrokers(oldDevices);
   if (brokers.length === 0) return false;
 
-  // 生成服务器列表（根据旧 tls 标志补全协议前缀）
+  // 生成服务器列表（合并端口到 URL，根据旧 tls 标志补全协议前缀）
   const servers = brokers.map((b, i) => {
-    let url = b.brokerUrl;
+    let url = /:\d+$/.test(b.brokerUrl)
+      ? b.brokerUrl
+      : `${b.brokerUrl}:${b.port}`;
     if (!/^mqtts?:\/\//.test(url)) {
       url = (b.tls ? 'mqtts://' : 'mqtt://') + url;
     }
@@ -76,7 +78,6 @@ export function runMigration(): boolean {
       id: generateGuid(),
       name: `默认服务器 ${i + 1}`,
       brokerUrl: url,
-      port: b.port,
       username: b.username,
       password: b.password,
       connected: false,
@@ -86,17 +87,23 @@ export function runMigration(): boolean {
   // 构建 broker→serverId 映射
   const brokerKeyToServerId = new Map<string, string>();
   for (const s of servers) {
-    const key = `${s.brokerUrl}|${s.port}|${s.username}`;
+    const key = `${s.brokerUrl}|${s.username}`;
     brokerKeyToServerId.set(key, s.id);
   }
 
   // 转换旧设备 → 新格式
-  const newDevices = oldDevices.map((d) => ({
-    id: d.id,
-    name: d.name,
-    serverId: brokerKeyToServerId.get(`${d.brokerUrl ?? ''}|${d.port ?? 0}|${d.username ?? ''}`) ?? '',
-    isOnline: d.isOnline ?? null,
-  }));
+  const newDevices = oldDevices.map((d) => {
+    const rawUrl = d.brokerUrl ?? '';
+    const deviceKey = /:\d+$/.test(rawUrl)
+      ? `${rawUrl}|${d.username ?? ''}`
+      : `${rawUrl}:${d.port ?? 0}|${d.username ?? ''}`;
+    return {
+      id: d.id,
+      name: d.name,
+      serverId: brokerKeyToServerId.get(deviceKey) ?? '',
+      isOnline: d.isOnline ?? null,
+    };
+  });
 
   // 写入新 keys
   localStorage.setItem('mqttServers', JSON.stringify(servers));

@@ -98,7 +98,6 @@ export interface MqttServer {
   id: string;
   name: string;
   brokerUrl: string;
-  port: number;
   username: string;
   password: string;
   connected: boolean;

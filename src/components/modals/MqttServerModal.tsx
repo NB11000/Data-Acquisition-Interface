@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import {
-  Modal, Form, Input, InputNumber, Switch, Button, Upload, message, Space,
+  Modal, Form, Input, Switch, Button, Upload, message, Space,
 } from 'antd';
 import { UploadOutlined } from '@ant-design/icons';
 import { useServerStore, type MqttServer } from '../../stores/serverStore';
@@ -35,7 +35,6 @@ export function MqttServerModal({ open, onClose, onSuccess, server }: Props) {
       form.setFieldsValue({
         name: server.name,
         brokerUrl: server.brokerUrl,
-        port: server.port,
         username: server.username,
         password: server.password,
       });
@@ -54,9 +53,9 @@ export function MqttServerModal({ open, onClose, onSuccess, server }: Props) {
       setTesting(true);
       const ok = await testConnection(
         values.brokerUrl,
-        values.port,
         values.username,
         values.password,
+        caCert || undefined,
       );
       if (ok) {
         message.success('连接测试成功');
@@ -92,7 +91,6 @@ export function MqttServerModal({ open, onClose, onSuccess, server }: Props) {
         id: server?.id ?? generateGuid(),
         name: values.name,
         brokerUrl: values.brokerUrl,
-        port: values.port,
         username: values.username,
         password: values.password,
         connected: false,
@@ -100,7 +98,7 @@ export function MqttServerModal({ open, onClose, onSuccess, server }: Props) {
       };
 
       if (!isEdit) {
-        const dup = findDuplicate(data.brokerUrl, data.port, data.username);
+        const dup = findDuplicate(data.brokerUrl, data.username);
         if (dup) {
           message.warning(`已存在相同连接配置的服务器「${dup.name}」，不能重复添加`);
           setSaving(false);
@@ -164,42 +162,24 @@ export function MqttServerModal({ open, onClose, onSuccess, server }: Props) {
         <Form.Item
           name="brokerUrl"
           label="Broker 地址"
-          extra="请包含协议前缀并去掉端口，如 mqtts://host.com 或 wss://host.com"
+          extra="请输入完整 Broker 地址，如 mqtts://host.com:8883/mqtt"
           rules={[
             { required: true, message: '请输入 Broker 地址' },
             {
               pattern: /^(mqtts?|wss?):\/\/.+/,
-              message: '必须以 mqtt://、mqtts://、 ws:// 或 wss:// 开头',
+              message: '必须以 mqtt://、mqtts://、ws:// 或 wss:// 开头',
             },
             {
               validator: (_, v) => {
-                if (typeof v === 'string' && /:\d+/.test(v)) {
-                  return Promise.reject(new Error('端口请填写在下方端口号字段'));
+                if (typeof v === 'string' && !/:\d+/.test(v)) {
+                  return Promise.reject(new Error('请包含端口号，如 mqtts://host.com:8883/mqtt'));
                 }
                 return Promise.resolve();
               },
             },
           ]}
         >
-          <Input placeholder="如：mqtts://z0d131fe.ala.cn-hangzhou.emqxsl.cn" />
-        </Form.Item>
-
-        <Form.Item
-          name="port"
-          label="端口号"
-          rules={[
-            { required: true, message: '请输入端口号' },
-            {
-              validator: (_, v) => {
-                if (v === null || v === undefined || v === '') return Promise.reject(new Error('请输入端口号'));
-                const n = Number(v);
-                if (isNaN(n) || n < 1 || n > 65535) return Promise.reject(new Error('端口号范围 1-65535'));
-                return Promise.resolve();
-              },
-            },
-          ]}
-        >
-          <InputNumber placeholder="如：1883 或 8883" min={1} max={65535} style={{ width: '100%' }} />
+          <Input placeholder="如：mqtts://z0d131fe.ala.cn-hangzhou.emqxsl.cn:8883/mqtt" />
         </Form.Item>
 
         <Form.Item name="username" label="用户名">

@@ -36,8 +36,7 @@ _Avoid_: 连接工厂
 interface MqttServer {
   id: string;            // 自生成 UUID
   name: string;          // 显示名称，如"生产环境"
-  brokerUrl: string;     // 含协议前缀，支持 mqtt:// mqtts:// ws:// wss://（必填，无默认值）
-  port: number;          // 1883 或 8883（必填，无默认值）
+  brokerUrl: string;     // 完整地址，含协议+主机+端口+路径（必填，如 mqtts://host.com:8883/mqtt）
   username: string;
   password: string;
   caCert?: string;       // CA 证书 PEM 内容；存在即视为启用 TLS
@@ -162,7 +161,7 @@ Map<serverId, Set<clientId>>       // 在线客户端缓存（从 $SYS 事件维
 
 ### MqttServer 去重
 
-保存 MqttServer 时检查是否已存在相同 `brokerUrl:port:username` 的服务器，若有则拒绝并提示。
+保存 MqttServer 时检查是否已存在相同 `brokerUrl:username` 的服务器，若有则拒绝并提示。
 
 ## 侧边栏
 
@@ -215,5 +214,5 @@ Map<serverId, Set<clientId>>       // 在线客户端缓存（从 $SYS 事件维
 
 ## Flagged ambiguities
 
-- "connection key" 曾指 `brokerUrl:port:username:password` 和 `serverId` 两种含义 → 已统一为 `serverId`
+- "connection key" 曾指 `brokerUrl:port:username:password` 和 `serverId` 两种含义 → 已统一为 `serverId`。`port` 字段已从 MqttServer 移除，合并入 brokerUrl。
 - ADR 0001 的"每设备独立配置"设计已被 ADR 0003 取代

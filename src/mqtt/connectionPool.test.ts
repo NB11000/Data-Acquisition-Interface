@@ -29,7 +29,7 @@ function createSpyFactory(): SpyConnectionFactory {
 }
 
 const server = (overrides: Partial<MqttServer> = {}): MqttServer => ({
-  id: 's1', name: 'test', brokerUrl: 'mqtt://localhost', port: 1883,
+  id: 's1', name: 'test', brokerUrl: 'mqtt://localhost:1883',
   username: '', password: '', connected: false,
   ...overrides,
 });

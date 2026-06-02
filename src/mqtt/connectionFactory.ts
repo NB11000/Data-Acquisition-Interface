@@ -76,11 +76,13 @@ class RealMqttAdapter implements MqttClientLike {
 export function createRealFactory(): ConnectionFactory {
   return {
     createConnection(server: MqttServer): MqttClientLike {
-      const url = `${server.brokerUrl}:${server.port}`;
+      const url = server.brokerUrl;
       const client = mqtt.connect(url, {
         clientId: server.id,
         username: server.username,
         password: server.password,
+        ca: server.caCert ? [server.caCert] : undefined,
+        rejectUnauthorized: !!server.caCert,
         keepalive: 30,
       });
       return new RealMqttAdapter(client);

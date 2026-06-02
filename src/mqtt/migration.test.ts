@@ -76,7 +76,6 @@ describe('runMigration', () => {
     expect(servers[0]).toMatchObject({
       name: '默认服务器 1',
       brokerUrl: 'mqtts://broker1.example.com:8883',
-      port: 8883,
       username: 'user1',
       password: 'pass1',
       connected: false,
@@ -85,7 +84,6 @@ describe('runMigration', () => {
     expect(servers[1]).toMatchObject({
       name: '默认服务器 2',
       brokerUrl: 'mqtts://broker2.example.com:1883',
-      port: 1883,
       username: 'user2',
       password: 'pass2',
       connected: false,
@@ -122,11 +120,11 @@ describe('runMigration', () => {
     const servers = JSON.parse(storage.getItem('mqttServers')!);
     expect(servers).toHaveLength(2);
 
-    const tlsServer = servers.find((s: any) => s.port === 8883);
-    expect(tlsServer.brokerUrl).toBe('mqtts://broker-tls.example.com');
+    const tlsServer = servers.find((s: any) => s.brokerUrl.includes(':8883'));
+    expect(tlsServer.brokerUrl).toBe('mqtts://broker-tls.example.com:8883');
 
-    const noTlsServer = servers.find((s: any) => s.port === 1883);
-    expect(noTlsServer.brokerUrl).toBe('mqtt://broker-notls.example.com');
+    const noTlsServer = servers.find((s: any) => s.brokerUrl.includes(':1883'));
+    expect(noTlsServer.brokerUrl).toBe('mqtt://broker-notls.example.com:1883');
   });
 
   it('brokerUrl 已有协议前缀时不重复添加', () => {
@@ -148,7 +146,7 @@ describe('runMigration', () => {
 
     const servers = JSON.parse(storage.getItem('mqttServers')!);
     expect(servers).toHaveLength(1);
-    expect(servers[0].brokerUrl).toBe('mqtts://already-has-prefix.example.com');
+    expect(servers[0].brokerUrl).toBe('mqtts://already-has-prefix.example.com:8883');
   });
 
   it('device.serverId 应指向对应 server 的 id', () => {

@@ -118,7 +118,6 @@ export class ConnectionPool {
     const oldServer = ctx.server;
     const needsReconnect =
       oldServer.brokerUrl !== server.brokerUrl ||
-      oldServer.port !== server.port ||
       oldServer.username !== server.username ||
       oldServer.password !== server.password;
 

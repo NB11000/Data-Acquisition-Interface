@@ -167,7 +167,7 @@ export default function Settings() {
                         </span>
                       </div>
                       <div className={styles.serverMeta}>
-                        <span className={styles.brokerUrl}>{server.brokerUrl}:{server.port}</span>
+                        <span className={styles.brokerUrl}>{server.brokerUrl}</span>
                         <span className={styles.deviceCount}>
                           {getDeviceCount(server.id)} 台设备
                         </span>

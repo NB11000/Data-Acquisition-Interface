@@ -135,7 +135,8 @@ export function AddDeviceModal({ open, onClose }: Props) {
 
   const serverOptions = servers.map((s) => ({
     value: s.id,
-    label: `${s.name} (${s.brokerUrl}:${s.port})`,
+    label: s.name,
+    title: s.brokerUrl,
   }));
 
   const tabItems = [

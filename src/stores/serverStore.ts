@@ -7,7 +7,6 @@ export interface MqttServer {
   id: string;
   name: string;
   brokerUrl: string;
-  port: number;
   username: string;
   password: string;
   connected: boolean;
@@ -20,7 +19,7 @@ interface ServerStore {
   addServer: (server: MqttServer) => void;
   removeServer: (id: string) => void;
   updateServer: (id: string, partial: Partial<MqttServer>) => void;
-  findDuplicate: (brokerUrl: string, port: number, username: string) => MqttServer | undefined;
+  findDuplicate: (brokerUrl: string, username: string) => MqttServer | undefined;
   setConnected: (id: string, connected: boolean) => void;
   setConnectionState: (id: string, state: PoolConnectionState) => void;
 }
@@ -43,11 +42,10 @@ export const useServerStore = create<ServerStore>()(
           ),
         })),
 
-      findDuplicate: (brokerUrl, port, username) =>
+      findDuplicate: (brokerUrl, username) =>
         get().servers.find(
           (s) =>
             s.brokerUrl === brokerUrl &&
-            s.port === port &&
             s.username === username,
         ),
 
