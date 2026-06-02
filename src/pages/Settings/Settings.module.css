@@ -64,7 +64,7 @@
 }
 
 .stateText {
-  color: var(--text-secondary, #a0a0b0);
+  color: var(--app-text-secondary, #a0a0b0);
   white-space: nowrap;
 }
 
@@ -73,7 +73,7 @@
   align-items: center;
   gap: 20px;
   font-size: 12px;
-  color: var(--text-secondary, #a0a0b0);
+  color: var(--app-text-secondary, #a0a0b0);
 }
 
 .brokerUrl {

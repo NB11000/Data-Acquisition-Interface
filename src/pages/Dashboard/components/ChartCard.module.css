@@ -2,17 +2,17 @@
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: var(--chart-card-bg);
+  background: var(--app-card-bg);
   border-radius: 6px;
-  border-top: 3px solid var(--chart-card-border-top);
-  padding: var(--chart-card-padding);
+  border-top: 3px solid var(--app-chart-card-border-top);
+  padding: var(--app-chart-card-padding);
   overflow: hidden;
 }
 
 .title {
   font-size: 13px;
   font-weight: 500;
-  color: var(--text-primary);
+  color: var(--app-text-primary);
   margin-bottom: 4px;
   flex-shrink: 0;
 }

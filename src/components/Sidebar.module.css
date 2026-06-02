@@ -4,7 +4,7 @@
   display: flex;
   flex-direction: column;
   background: var(--app-sidebar-bg);
-  border-right: 1px solid var(--statusbar-border);
+  border-right: 1px solid var(--app-control-bar-border);
   flex-shrink: 0;
 }
 
@@ -17,7 +17,7 @@
 
 .count {
   font-size: 13px;
-  color: var(--text-secondary);
+  color: var(--app-text-secondary);
 }
 
 .treeContainer {
@@ -29,17 +29,17 @@
 .empty {
   padding: 24px;
   text-align: center;
-  color: var(--text-secondary);
+  color: var(--app-text-secondary);
 }
 
 .footer {
   padding: 8px;
-  border-top: 1px solid var(--statusbar-border);
+  border-top: 1px solid var(--app-control-bar-border);
 }
 
 /* 连接断开的服务器灰显 */
 .grayed {
-  color: var(--text-secondary);
+  color: var(--app-text-secondary);
 }
 
 /* 状态圆点 */

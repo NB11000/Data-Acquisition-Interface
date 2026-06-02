@@ -2,7 +2,7 @@
   height: 48px;
   display: flex;
   align-items: center;
-  background: var(--app-navbar-bg);
+  background: var(--app-nav-bg);
   padding: 0 16px;
   flex-shrink: 0;
   z-index: 100;
@@ -40,5 +40,5 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  color: var(--navbar-text);
+  color: var(--app-nav-text);
 }

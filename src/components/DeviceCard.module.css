@@ -8,11 +8,11 @@
 }
 
 .card:hover {
-  background: var(--device-card-hover);
+  background: var(--app-device-card-hover);
 }
 
 .active {
-  background: var(--device-card-hover);
+  background: var(--app-device-card-hover);
   border-color: #1890ff;
 }
 
@@ -25,7 +25,7 @@
 .name {
   font-size: 13px;
   font-weight: 500;
-  color: var(--text-primary);
+  color: var(--app-text-primary);
 }
 
 .status {
@@ -47,7 +47,7 @@
 
 .statusText {
   font-size: 11px;
-  color: var(--text-secondary);
+  color: var(--app-text-secondary);
 }
 
 .row2 {
@@ -59,7 +59,7 @@
 
 .subtitle {
   font-size: 11px;
-  color: var(--text-secondary);
+  color: var(--app-text-secondary);
 }
 
 .actions {

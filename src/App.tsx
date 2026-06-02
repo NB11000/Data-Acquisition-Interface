@@ -10,7 +10,7 @@ import { useState, useEffect } from 'react';
 
 export default function App() {
   const [isDark, setIsDark] = useState(
-    () => document.body.classList.contains('dark-theme'),
+    () => localStorage.getItem('app-theme') !== 'light',
   );
 
   useEffect(() => {

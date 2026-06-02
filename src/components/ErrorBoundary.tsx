@@ -30,8 +30,8 @@ export class ChartErrorBoundary extends Component<Props, State> {
       return (
         <div style={{
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          height: '100%', background: 'var(--chart-card-bg)', borderRadius: 6,
-          borderTop: '3px solid var(--chart-card-border-top)', padding: 8
+          height: '100%', background: 'var(--app-card-bg)', borderRadius: 6,
+          borderTop: '3px solid var(--app-chart-card-border-top)', padding: 8
         }}>
           <Empty description={this.props.title || '图表加载失败'}>
             <Button size="small" onClick={this.handleRetry}>重试</Button>

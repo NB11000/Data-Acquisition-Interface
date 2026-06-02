@@ -55,7 +55,7 @@ export function WaveformChart() {
 
     if (!uPlotInstance.current) {
       // Resolve CSS custom properties to concrete values for Canvas 2D.
-      const textColor = getResolvedColor('--text-secondary', '#888');
+      const textColor = getResolvedColor('--app-text-secondary', '#888');
       const gridColor = 'rgba(128,128,128,0.1)';
 
       const opts: uPlot.Options = {

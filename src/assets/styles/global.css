@@ -17,6 +17,17 @@ html, body, #root {
 
 body {
   background-color: var(--app-bg-color);
-  color: var(--text-primary);
+  color: var(--app-text-primary);
   transition: background-color 0.2s, color 0.2s;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--app-scrollbar-thumb);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-track {
+  background: var(--app-scrollbar-track);
 }

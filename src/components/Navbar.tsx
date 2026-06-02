@@ -1,6 +1,7 @@
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Tabs, Switch, Avatar } from 'antd';
+import { Tabs, Avatar } from 'antd';
 import { DashboardOutlined, BellOutlined, HistoryOutlined, SettingOutlined, FileTextOutlined, UserOutlined } from '@ant-design/icons';
+import ThemeSwitch from './common/ThemeSwitch';
 import styles from './Navbar.module.css';
 
 const tabs = [
@@ -17,10 +18,6 @@ export function Navbar() {
 
   const activeKey = '/' + location.pathname.split('/')[1] || '/dashboard';
 
-  const handleToggleDark = (checked: boolean) => {
-    document.body.classList.toggle('dark-theme', checked);
-  };
-
   return (
     <div className={styles.navbar}>
       <div className={styles.logo} onClick={() => navigate('/dashboard')}>
@@ -35,9 +32,7 @@ export function Navbar() {
         />
       </div>
       <div className={styles.right}>
-        <span>☀️</span>
-        <Switch size="small" onChange={handleToggleDark} />
-        <span>🌙</span>
+        <ThemeSwitch />
         <Avatar size="small" icon={<UserOutlined />} />
       </div>
     </div>

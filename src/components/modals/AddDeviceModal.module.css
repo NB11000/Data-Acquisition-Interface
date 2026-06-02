@@ -8,7 +8,7 @@
 .sectionTitle {
   font-size: 13px;
   font-weight: 500;
-  color: var(--text-secondary, #666);
+  color: var(--app-text-secondary, #666);
   margin-bottom: 8px;
 }
 
@@ -37,7 +37,7 @@
 
 .field label {
   font-size: 13px;
-  color: var(--text-secondary, #666);
+  color: var(--app-text-secondary, #666);
 }
 
 .batchFooter {

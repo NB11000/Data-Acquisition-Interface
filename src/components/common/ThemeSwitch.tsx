@@ -8,7 +8,7 @@ const STORAGE_KEY = 'app-theme';
 export default function ThemeSwitch() {
   const [dark, setDark] = useState(() => {
     if (typeof window === 'undefined') return false;
-    return localStorage.getItem(STORAGE_KEY) === 'dark';
+    return localStorage.getItem(STORAGE_KEY) !== 'light';
   });
 
   useEffect(() => {
