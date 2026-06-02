@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ConfigProvider, theme as antdTheme } from 'antd';
 import { AppLayout } from './layouts/AppLayout';
 import Dashboard from './pages/Dashboard';
@@ -28,7 +28,7 @@ export default function App() {
         token: { colorPrimary: '#1890ff', borderRadius: 4 },
       }}
     >
-      <BrowserRouter basename={import.meta.env.BASE_URL.replace(/\/$/, '')}>
+      <HashRouter>
         <Routes>
           <Route path="/" element={<AppLayout />}>
             <Route index element={<Navigate to="/dashboard" />} />
