@@ -1,0 +1,46 @@
+.serverRow {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  align-items: center;
+}
+
+.sectionTitle {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary, #666);
+  margin-bottom: 8px;
+}
+
+.serverSelect {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.addBtn {
+  flex-shrink: 0;
+}
+
+.tabContent {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-top: 4px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.field label {
+  font-size: 13px;
+  color: var(--text-secondary, #666);
+}
+
+.batchFooter {
+  margin-top: 12px;
+  text-align: right;
+}

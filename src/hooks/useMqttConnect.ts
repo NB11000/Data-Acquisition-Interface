@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
-import { getMqttClient, getMqttClientSafely, initMqttClient } from '../mqtt/client';
-import { setupMqttRouter } from '../mqtt/router';
+import { getPool } from '../mqtt/pool';
+import { setupRouter } from '../mqtt/router';
 import { sendRpcCommand, clearPendingRpcs } from '../mqtt/rpc';
 import { useMqttStore } from '../stores/mqttStore';
 import { useDeviceStore } from '../stores/deviceStore';
@@ -8,200 +8,123 @@ import { useCollectorStore } from '../stores/collectorStore';
 import { useLaserStore } from '../stores/laserStore';
 import { useWaveformStore } from '../stores/waveformStore';
 import { useDataStore } from '../stores/dataStore';
-import { MQTT_MODE } from '../env';
-import type { MqttClientLike } from '../mqtt/client';
-import type { MockMqttClient } from '../mock/mockMqttClient';
-
-// Moved here from mqtt/topics to avoid cross-import gymnastics
-import {
-  waveformCh1Topic,
-  waveformCh2Topic,
-  stateChangedTopic,
-  willTopic,
-  deviceAlarmTopic,
-  lowFreqTopic,
-  rpcResponsePattern,
-  sysClientConnectedTopic,
-  sysClientDisconnectedTopic,
-} from '../mqtt/topics';
-import { startMockWaveform } from '../mock/mockWaveform';
-import { startMockLowFreq } from '../mock/mockLowFreq';
-
-// ── Helpers ──
-
-function subscribeDevice(client: MqttClientLike, machineId: string): void {
-  client.subscribe(waveformCh1Topic(machineId));
-  client.subscribe(waveformCh2Topic(machineId));
-  client.subscribe(stateChangedTopic(machineId));
-  client.subscribe(willTopic(machineId));
-  client.subscribe(deviceAlarmTopic(machineId));
-  client.subscribe(lowFreqTopic(machineId));
-  client.subscribe(rpcResponsePattern(machineId));
-}
-
-function unsubscribeDevice(client: MqttClientLike, machineId: string): void {
-  client.unsubscribe(`daq/${machineId}/#`);
-  client.unsubscribe(`$rpc/${machineId}/#`);
-}
-
-function injectMockSysConnected(client: MockMqttClient, deviceId: string): void {
-  const sysTopic = `$SYS/brokers/emqx/clients/${deviceId}/connected`;
-  const sysPayload = new TextEncoder().encode(JSON.stringify({
-    connected: true,
-    clientid: deviceId,
-  }));
-  client.injectMessage(sysTopic, sysPayload);
-}
-
-// ── Hook ──
+import { useAlarmStore } from '../stores/alarmStore';
+import { useServerStore, type PoolConnectionState as ConnectionState } from '../stores/serverStore';
+import { useMockGenerators } from './useMockGenerators';
 
 export function useMqttConnect(): void {
   const selectedId = useDeviceStore((s) => s.selectedId);
-  const devices = useDeviceStore((s) => s.devices);
-  const mqttConnected = useMqttStore((s) => s.mqttConnected);
+  const prevSelectedRef = useRef<string | null>(null);
 
-  // Collector state — drives mock generator start/stop
-  const acquiring = useCollectorStore((s) => s.acquiring);
-  const deviceOpened = useCollectorStore((s) => s.deviceOpened);
+  // Mock 模式：启动 $SYS 注入 + 波形/低频生成器
+  useMockGenerators();
 
-  // Tracks which device we are currently subscribed to
-  const subscribedDeviceRef = useRef<string | null>(null);
-  // Mock generator stop handles
-  const stopWaveformRef = useRef<(() => void) | null>(null);
-  const stopLowFreqRef = useRef<(() => void) | null>(null);
-  // Tracks which device IDs already received mock $SYS injection
-  const sysInjectedRef = useRef<Set<string>>(new Set());
-
-  // ── Issue 4: Init the MQTT client once (survives StrictMode remount) ──
+  // ── 初始化：为所有 server 创建连接，注册 router ──
   useEffect(() => {
-    const existing = getMqttClientSafely();
-    const client = existing ?? initMqttClient('ui-client');
+    const pool = getPool();
+    const servers = useServerStore.getState().servers;
 
-    client.onConnect = () => {
-      useMqttStore.getState().setConnected(true);
+    // 注册 router（返回清理函数，解决 StrictMode 双挂载导致监听器重复注册问题）
+    const teardownRouter = setupRouter(pool);
 
-      // Q3: In mock mode, inject $SYS connected for all already-added devices
-      if (MQTT_MODE === 'mock') {
-        const mockClient = client as unknown as MockMqttClient;
-        const allDevices = useDeviceStore.getState().devices;
-        for (const d of allDevices) {
-          if (!sysInjectedRef.current.has(d.id)) {
-            sysInjectedRef.current.add(d.id);
-            injectMockSysConnected(mockClient, d.id);
-          }
-        }
+    // 连接状态 → store 同步
+    const onStateChange = ({ serverId, state }: { serverId: string; state: string }) => {
+      useServerStore.getState().setConnected(serverId, state === 'connected');
+      useServerStore.getState().setConnectionState(serverId, state as ConnectionState);
+
+      const anyConnected = useServerStore.getState().servers.some(
+        (s) => pool.isConnected(s.id),
+      );
+      useMqttStore.getState().setConnected(anyConnected);
+
+      if (state === 'disconnected' || state === 'failed') {
+        clearPendingRpcs();
       }
     };
 
-    client.onDisconnect = () => {
-      useMqttStore.getState().setConnected(false);
-      clearPendingRpcs();
-      // Q1: Stop generators on disconnect
-      stopWaveformRef.current?.();
-      stopLowFreqRef.current?.();
-      stopWaveformRef.current = null;
-      stopLowFreqRef.current = null;
-    };
+    pool.onStateChange(onStateChange);
 
-    // Issue 11: single onMessage handler is set by router (includes RPC resolution)
-    setupMqttRouter(client);
+    // 并行创建所有 server 连接
+    for (const server of servers) {
+      if (!pool.getClient(server.id)) {
+        pool.create(server);
+      }
+    }
 
-    // Subscribe to EMQX $SYS topics for device online status
-    client.subscribe(sysClientConnectedTopic());
-    client.subscribe(sysClientDisconnectedTopic());
-
-    client.connect();
+    // 为当前已选设备订阅主题
+    const currentId = useDeviceStore.getState().selectedId;
+    if (currentId) {
+      const device = useDeviceStore.getState().devices.find((d) => d.id === currentId);
+      if (device) {
+        pool.subscribeDevice(device.serverId, currentId);
+        pool.switchFollowing(device.serverId, null, currentId);
+        sendRpcCommand(pool, currentId, 'SYSTEM_STATE')
+          .then((result) => {
+            if (result.state) {
+              useCollectorStore.getState().applyState(result.state.collector);
+              useLaserStore.getState().applyState(result.state.laser);
+            }
+          })
+          .catch(() => {});
+      }
+      prevSelectedRef.current = currentId;
+    }
 
     return () => {
-      // Issue 4: do NOT destroy the MQTT client – let it survive StrictMode remounts
-      stopWaveformRef.current?.();
-      stopLowFreqRef.current?.();
+      teardownRouter();
+      pool.offStateChange(onStateChange);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ── Q3: Inject mock $SYS for newly added devices ──
+  // ── 设备切换：管理常驻主题 + 跟随主题 ──
   useEffect(() => {
-    if (MQTT_MODE !== 'mock' || !mqttConnected) return;
-    const client = getMqttClientSafely();
-    if (!client) return;
-    const mockClient = client as unknown as MockMqttClient;
-    for (const d of devices) {
-      if (!sysInjectedRef.current.has(d.id)) {
-        sysInjectedRef.current.add(d.id);
-        injectMockSysConnected(mockClient, d.id);
+    if (!selectedId) return;
+
+    const pool = getPool();
+    const prevId = prevSelectedRef.current;
+
+    if (prevId === selectedId) return;
+
+    const device = useDeviceStore.getState().devices.find((d) => d.id === selectedId);
+    if (!device) return;
+
+    const prevDevice = prevId
+      ? useDeviceStore.getState().devices.find((d) => d.id === prevId)
+      : null;
+
+    // 先清空数据 stores，避免残留旧数据被新设备渲染
+    useCollectorStore.getState().reset();
+    useLaserStore.getState().reset();
+    useWaveformStore.getState().clear();
+    useDataStore.getState().clear();
+    useAlarmStore.getState().clear();
+
+    if (prevDevice && prevDevice.serverId === device.serverId) {
+      // 同服务器 → 复用连接，切换主题
+      pool.subscribeDevice(device.serverId, selectedId);
+      pool.switchFollowing(device.serverId, prevDevice.id, selectedId);
+      pool.unsubscribeDevice(device.serverId, prevDevice.id, true);
+    } else {
+      // 跨服务器 / 首次选择
+      if (prevDevice) {
+        pool.switchFollowing(prevDevice.serverId, prevDevice.id, null);
+        pool.unsubscribeDevice(prevDevice.serverId, prevDevice.id, true);
       }
-    }
-  }, [devices, mqttConnected]);
-
-  // ── Issue 3: React to connection / device changes ──
-  useEffect(() => {
-    if (!mqttConnected || !selectedId) {
-      return;
+      pool.subscribeDevice(device.serverId, selectedId);
+      pool.switchFollowing(device.serverId, null, selectedId);
     }
 
-    const client = getMqttClient();
-    const prevId = subscribedDeviceRef.current;
+    // 请求设备状态
+    sendRpcCommand(pool, selectedId, 'SYSTEM_STATE')
+      .then((result) => {
+        if (result.state) {
+          useCollectorStore.getState().applyState(result.state.collector);
+          useLaserStore.getState().applyState(result.state.laser);
+        }
+      })
+      .catch(() => {});
 
-    // Device switch → unsubscribe old
-    if (prevId && prevId !== selectedId) {
-      unsubscribeDevice(client, prevId);
-      // Q1: Stop generators on device switch (will be restarted if state allows)
-      stopWaveformRef.current?.();
-      stopLowFreqRef.current?.();
-      stopWaveformRef.current = null;
-      stopLowFreqRef.current = null;
-    }
-
-    // (Re-)subscribe current device (idempotent – safe to call multiple times)
-    subscribeDevice(client, selectedId);
-
-    // Only send SYSTEM_STATE + clear stores on initial selection or device switch
-    if (prevId !== selectedId) {
-      sendRpcCommand(client, selectedId, 'SYSTEM_STATE')
-        .then((result) => {
-          if (result.state) {
-            useCollectorStore.getState().applyState(result.state.collector);
-            useLaserStore.getState().applyState(result.state.laser);
-            // Q3: Mock mode — inject $SYS for selected device (covers edge cases)
-            if (MQTT_MODE === 'mock') {
-              const mockClient = client as unknown as MockMqttClient;
-              if (!sysInjectedRef.current.has(selectedId)) {
-                sysInjectedRef.current.add(selectedId);
-                injectMockSysConnected(mockClient, selectedId);
-              }
-            }
-          }
-        })
-        .catch(() => {});
-
-      useCollectorStore.getState().reset();
-      useLaserStore.getState().reset();
-      useWaveformStore.getState().clear();
-      useDataStore.getState().clear();
-    }
-
-    subscribedDeviceRef.current = selectedId;
-  }, [mqttConnected, selectedId]);
-
-  // ── Q1: Mock generator lifecycle driven by collector state ──
-  useEffect(() => {
-    if (MQTT_MODE !== 'mock') return;
-
-    if (!mqttConnected || !selectedId || !deviceOpened || !acquiring) {
-      stopWaveformRef.current?.();
-      stopLowFreqRef.current?.();
-      stopWaveformRef.current = null;
-      stopLowFreqRef.current = null;
-      return;
-    }
-
-    const client = getMqttClientSafely();
-    if (!client) return;
-
-    const mockClient = client as unknown as MockMqttClient;
-    stopWaveformRef.current?.();
-    stopLowFreqRef.current?.();
-    stopWaveformRef.current = startMockWaveform(mockClient, selectedId);
-    stopLowFreqRef.current = startMockLowFreq(mockClient, selectedId);
-  }, [mqttConnected, selectedId, deviceOpened, acquiring]);
+    prevSelectedRef.current = selectedId;
+  }, [selectedId]);
 }

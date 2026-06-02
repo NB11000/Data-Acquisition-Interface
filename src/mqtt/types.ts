@@ -93,8 +93,25 @@ export interface SysClientEvent {
   ts?: number;
 }
 
+// ── Server ──
+export interface MqttServer {
+  id: string;
+  name: string;
+  brokerUrl: string;
+  username: string;
+  password: string;
+  connected: boolean;
+}
+
 // ── Device ──
 export interface DeviceInfo {
+  id: string;
+  name: string;
+  serverId: string;
+}
+
+/** localStorage 中已知的旧格式 Device（带连接字段），仅迁移时使用 */
+export interface LegacyDevice {
   id: string;
   name: string;
   brokerUrl: string;
@@ -102,4 +119,5 @@ export interface DeviceInfo {
   username: string;
   password: string;
   tls: boolean;
+  isOnline?: boolean;
 }

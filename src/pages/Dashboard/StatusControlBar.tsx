@@ -36,7 +36,7 @@ export function StatusControlBar() {
 
   const { sendCommand } = useRpcCommand();
 
-  const allDisabled = !mqttConnected || willReceived || !selectedId || !processConnected;
+  const allDisabled = !mqttConnected || willReceived || !selectedId || !selectedDevice || !processConnected;
 
   // 采集卡: 采集中禁用
   const collectorDisabled = allDisabled || acquiring;

@@ -7,6 +7,7 @@ interface AlarmStore {
 
   add: (a: DeviceAlarm) => void;
   markAllRead: () => void;
+  clear: () => void;
 }
 
 export const useAlarmStore = create<AlarmStore>((set) => ({
@@ -20,4 +21,6 @@ export const useAlarmStore = create<AlarmStore>((set) => ({
     })),
 
   markAllRead: () => set({ unreadCount: 0 }),
+
+  clear: () => set({ alarms: [], unreadCount: 0 }),
 }));

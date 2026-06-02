@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useLayoutEffect, useMemo, useRef } from 'react';
 import ReactECharts from 'echarts-for-react';
 import { useDataStore } from '../../../stores/dataStore';
 import { useContainerSize } from '../../../hooks/useResizeObserver';
@@ -9,10 +9,10 @@ export function Cn2Chart() {
   const samples = useDataStore((s) => s.samples);
   const chartRef = useRef<ReactECharts>(null);
 
-  const timestamps = samples.map((s) => s.utc.slice(11, 19));
-  const cn2Values = samples.map((s) => s.cn2);
+  const timestamps = useMemo(() => samples.map((s) => s.utc.slice(11, 19)), [samples]);
+  const cn2Values = useMemo(() => samples.map((s) => s.cn2), [samples]);
 
-  const option = {
+  const option = useMemo(() => ({
     grid: { top: 10, right: 10, bottom: 30, left: 60 },
     xAxis: { type: 'category' as const, data: timestamps, axisLine: { show: false }, splitLine: { show: false }, boundaryGap: false, axisLabel: { interval: 0 } },
     yAxis: {
@@ -40,9 +40,9 @@ export function Cn2Chart() {
       },
     },
     dataZoom: [{ type: 'inside' as const }],
-  };
+  }), [timestamps, cn2Values]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const instance = chartRef.current?.getEchartsInstance();
     if (!instance || samples.length === 0) return;
     const total = samples.length;

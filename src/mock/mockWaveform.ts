@@ -1,7 +1,7 @@
-import type { MockMqttClient } from './mockMqttClient';
+import type { MqttClientLike } from '../mqtt/mqttClientLike';
 
 export function startMockWaveform(
-  mockClient: MockMqttClient,
+  mockClient: MqttClientLike,
   machineId: string,
   intervalMs = 100,
 ): () => void {
