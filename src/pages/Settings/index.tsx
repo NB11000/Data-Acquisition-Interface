@@ -247,13 +247,17 @@ export default function Settings() {
                     <td style={{ padding: '8px 12px' }}>{getServerName(d.serverId)}</td>
                     <td style={{ padding: '8px 12px', textAlign: 'center' }}>
                       {serverState !== 'connected' ? (
-                        <Tag color="default">未知</Tag>
+                        <Tag>未知</Tag>
                       ) : d.isOnline === true ? (
                         <Tag color="green">在线</Tag>
                       ) : d.isOnline === false ? (
-                        <Tag color="default">离线</Tag>
+                        d.lastEventType === 'process_crashed' ? (
+                          <Tag color="red">已崩溃</Tag>
+                        ) : (
+                          <Tag>离线</Tag>
+                        )
                       ) : (
-                        <Tag color="default">未知</Tag>
+                        <Tag>未知</Tag>
                       )}
                     </td>
                     <td style={{ padding: '8px 12px', textAlign: 'right' }}>

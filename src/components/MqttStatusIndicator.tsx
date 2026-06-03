@@ -18,11 +18,13 @@ export function MqttStatusIndicator() {
 
   const collectorOnline = processConnected && mqttConnected && !willReceived;
 
+  const isCrashed = deviceOnline === false && selectedDevice?.lastEventType === 'process_crashed';
+
   return (
     <div className={styles.indicators}>
       <div className={styles.item}>
-        <span className={`${styles.dot} ${deviceOnline === true ? styles.green : deviceOnline === false ? styles.red : styles.gray}`} />
-        <span>设备在线状态 — {deviceOnline === true ? '在线' : deviceOnline === false ? '离线' : '无设备'}</span>
+        <span className={`${styles.dot} ${deviceOnline === true ? styles.green : isCrashed ? styles.red : deviceOnline === false ? styles.red : styles.gray}`} />
+        <span>设备在线状态 — {deviceOnline === true ? '在线' : isCrashed ? '已崩溃' : deviceOnline === false ? '离线' : '无设备'}</span>
       </div>
       <div className={styles.item}>
         <span className={`${styles.dot} ${collectorOnline ? (acquiring ? styles.green : styles.yellow) : styles.gray}`} />

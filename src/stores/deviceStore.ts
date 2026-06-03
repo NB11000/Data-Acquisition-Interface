@@ -7,6 +7,8 @@ export interface Device {
   name: string;
   serverId: string;
   isOnline: boolean | null;
+  lastTs?: number;
+  lastEventType?: 'device_online' | 'device_offline' | 'process_crashed';
 }
 
 interface DeviceStore {
@@ -17,7 +19,7 @@ interface DeviceStore {
   addDevice: (d: Device) => void;
   removeDevice: (id: string) => void;
   setSelected: (id: string) => void;
-  setOnline: (id: string, online: boolean | null) => void;
+  setOnline: (id: string, online: boolean | null, lastEventType?: 'device_online' | 'device_offline' | 'process_crashed') => void;
   setSearch: (text: string) => void;
   getDevicesByServer: (serverId: string) => Device[];
   getFilteredDevices: () => { serverId: string; devices: Device[] }[];
@@ -42,11 +44,18 @@ export const useDeviceStore = create<DeviceStore>()(
 
       setSelected: (id) => set({ selectedId: id }),
 
-      setOnline: (id, online: boolean | null) =>
+      setOnline: (id, online: boolean | null, lastEventType) =>
         set((s) => ({
-          devices: s.devices.map((d) =>
-            d.id === id ? { ...d, isOnline: online } : d,
-          ),
+          devices: s.devices.map((d) => {
+            if (d.id !== id) return d;
+            const next: Device = { ...d, isOnline: online };
+            if (online === null) {
+              next.lastEventType = undefined;
+            } else if (lastEventType !== undefined) {
+              next.lastEventType = lastEventType;
+            }
+            return next;
+          }),
         })),
 
       setSearch: (text) => set({ searchText: text }),

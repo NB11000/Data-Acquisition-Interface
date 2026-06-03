@@ -10,6 +10,20 @@ interface Props {
   onDelete: () => void;
 }
 
+function getStatusText(device: Device): string {
+  if (device.isOnline === true) return '在线';
+  if (device.isOnline === false) return device.lastEventType === 'process_crashed' ? '已崩溃' : '离线';
+  return '未知';
+}
+
+function StatusDot({ device }: { device: Device }) {
+  let color = '#8c8c8c';
+  if (device.isOnline === true) color = '#52c41a';
+  else if (device.isOnline === false && device.lastEventType === 'process_crashed') color = '#ff4d4f';
+  else if (device.isOnline === false) color = '#8c8c8c';
+  return <span className={styles.statusDot} style={{ backgroundColor: color }} />;
+}
+
 export function DeviceCard({ device, isSelected, onClick, onEdit, onDelete }: Props) {
   return (
     <div
@@ -19,8 +33,8 @@ export function DeviceCard({ device, isSelected, onClick, onEdit, onDelete }: Pr
       <div className={styles.row1}>
         <span className={styles.name}>{device.name}</span>
         <span className={styles.status}>
-          <span className={`${styles.statusDot} ${device.isOnline ? styles.online : styles.offline}`} />
-          <span className={styles.statusText}>{device.isOnline ? '在线' : '离线'}</span>
+          <StatusDot device={device} />
+          <span className={styles.statusText}>{getStatusText(device)}</span>
         </span>
       </div>
       <div className={styles.row2}>

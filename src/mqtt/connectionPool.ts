@@ -45,7 +45,7 @@ export class ConnectionPool {
       ctx.state = 'connected';
       ctx.retryCount = 0;
       this.emitStateChange(server.id, 'connected');
-      this.subscribeSysTopics(client);
+      client.subscribe('daq/+/events/will');
 
       // 重连后自动恢复该服务器下所有设备的常驻主题
       const allDevices = useDeviceStore.getState().devices;
@@ -91,7 +91,7 @@ export class ConnectionPool {
       ctx.state = 'connected';
       ctx.retryCount = 0;
       this.emitStateChange(server.id, 'connected');
-      this.subscribeSysTopics(client);
+      client.subscribe('daq/+/events/will');
     }
   }
 
@@ -139,7 +139,6 @@ export class ConnectionPool {
     if (!ctx) return;
 
     const topics = [
-      `daq/${machineId}/events/will`,
       `daq/${machineId}/events/state_changed`,
       `daq/${machineId}/events/device_alarm`,
       `$rpc/${machineId}/+/+/response`,
@@ -157,7 +156,6 @@ export class ConnectionPool {
     if (!ctx) return;
 
     const topics = [
-      `daq/${machineId}/events/will`,
       `daq/${machineId}/events/state_changed`,
       `daq/${machineId}/events/device_alarm`,
       `$rpc/${machineId}/+/+/response`,
@@ -256,11 +254,6 @@ export class ConnectionPool {
     this._stateChangeListeners = this._stateChangeListeners.filter((l) => l !== listener);
   }
 
-  private subscribeSysTopics(client: MqttClientLike): void {
-    client.subscribe('$SYS/brokers/+/clients/+/connected');
-    client.subscribe('$SYS/brokers/+/clients/+/disconnected');
-  }
-
   private startReconnect(serverId: string): void {
     const ctx = this.servers.get(serverId);
     if (!ctx) return;
@@ -282,7 +275,6 @@ export class ConnectionPool {
         ctx.state = 'connected';
         ctx.retryCount = 0;
         this.emitStateChange(serverId, 'connected');
-        this.subscribeSysTopics(ctx.client);
       } else {
         this.startReconnect(serverId);
       }

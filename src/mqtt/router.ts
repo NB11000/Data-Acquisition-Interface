@@ -1,5 +1,4 @@
 import type { ConnectionPool } from './connectionPool';
-import type { MqttClientLike } from './client';
 import { tryResolveRpc, clearPendingRpcs } from './rpc';
 import { parseWaveformBinary } from '../utils/binary';
 import { useCollectorStore } from '../stores/collectorStore';
@@ -9,23 +8,13 @@ import { useAlarmStore } from '../stores/alarmStore';
 import { useWaveformStore } from '../stores/waveformStore';
 import { useDataStore } from '../stores/dataStore';
 import { useDeviceStore } from '../stores/deviceStore';
-import type { StateChangedEvent, WillMessage, DeviceAlarm, LowFreqSample, SysClientEvent } from './types';
+import type { StateChangedEvent, DeviceAlarm, LowFreqSample, DeviceStatusPayload } from './types';
 
-// ── Issue 3: 多连接 Router ──
-
-// $SYS 事件回调（供外部注册）
-let _onSysConnected: ((serverId: string, clientId: string, connected: boolean) => void) | null = null;
-let _onSysDisconnected: ((serverId: string, clientId: string, connected: boolean) => void) | null = null;
-
-export function onSysConnected(cb: (serverId: string, clientId: string, connected: boolean) => void): void {
-  _onSysConnected = cb;
+function extractMachineId(topic: string): string {
+  const match = topic.match(/^daq\/(.+)\/events\/will$/);
+  return match ? match[1] : '';
 }
 
-export function onSysDisconnected(cb: (serverId: string, clientId: string, connected: boolean) => void): void {
-  _onSysDisconnected = cb;
-}
-
-/** 多连接版 Router：注册到 ConnectionPool 的 onMessage。返回清理函数。 */
 export function setupRouter(pool: ConnectionPool): () => void {
   const stateListener = ({ serverId, state }: { serverId: string; state: string }) => {
     if (state === 'reconnecting' || state === 'disconnected' || state === 'failed') {
@@ -35,54 +24,46 @@ export function setupRouter(pool: ConnectionPool): () => void {
   pool.onStateChange(stateListener);
 
   const messageListener = ({ serverId, topic, payload }: { serverId: string; topic: string; payload: Uint8Array }) => {
-    // 0) $SYS broker 事件 — 设备在线状态
-    if (topic.startsWith('$SYS/brokers/')) {
-      const parts = topic.split('/');
-      // topic 格式: $SYS/brokers/{node}/clients/{clientId}/connected|disconnected
-      const clientId = parts[4];
-      const isConnected = parts[5] === 'connected';
+    if (tryResolveRpc(topic, payload)) return;
 
-      // 更新 connectionPool 的在线客户端缓存
-      if (isConnected) {
-        pool.addOnlineClient(serverId, clientId);
-      } else {
-        pool.removeOnlineClient(serverId, clientId);
-      }
-
-      // 按 serverId + clientId 查 deviceStore 匹配设备
-      const deviceState = useDeviceStore.getState();
-      const matchedDevice = deviceState.devices.find(
-        (d) => d.id === clientId && d.serverId === serverId,
-      );
-
+    if (topic.endsWith('/events/will')) {
+      const machineId = extractMachineId(topic);
+      if (!machineId) return;
       try {
-        const event = JSON.parse(new TextDecoder().decode(payload)) as SysClientEvent;
-        const online = event.connected ?? isConnected;
-        if (matchedDevice) {
-          deviceState.setOnline(matchedDevice.id, online);
+        const data: DeviceStatusPayload = JSON.parse(new TextDecoder().decode(payload));
+        const deviceState = useDeviceStore.getState();
+        const device = deviceState.devices.find(d => d.id === machineId);
+        if (!device) return;
+
+        if (data.status === 'online') {
+          if (device.lastTs !== undefined && data.ts <= device.lastTs) return;
+          deviceState.setOnline(machineId, true, 'device_online');
+          pool.addOnlineClient(serverId, machineId);
+          const mqttState = useMqttStore.getState();
+          if (mqttState.willReceived && mqttState.willDeviceId === machineId) {
+            mqttState.clearWill();
+          }
+          return;
         }
-        if (isConnected && _onSysConnected) {
-          _onSysConnected(serverId, clientId, true);
-        } else if (_onSysDisconnected) {
-          _onSysDisconnected(serverId, clientId, false);
+
+        if (data.eventType === 'device_offline') {
+          if (device.lastTs !== undefined && data.ts <= device.lastTs) return;
+          deviceState.setOnline(machineId, false, 'device_offline');
+          pool.removeOnlineClient(serverId, machineId);
+          return;
         }
-      } catch {
-        if (matchedDevice) {
-          deviceState.setOnline(matchedDevice.id, isConnected);
+
+        if (data.eventType === 'process_crashed') {
+          if (device.lastEventType === 'process_crashed') return;
+          deviceState.setOnline(machineId, false, 'process_crashed');
+          useMqttStore.getState().setWill(machineId);
+          pool.removeOnlineClient(serverId, machineId);
+          return;
         }
-        if (isConnected && _onSysConnected) {
-          _onSysConnected(serverId, clientId, true);
-        } else if (_onSysDisconnected) {
-          _onSysDisconnected(serverId, clientId, false);
-        }
-      }
+      } catch { /* JSON 解析失败，忽略 */ }
       return;
     }
 
-    // 1) RPC 响应优先拦截
-    if (tryResolveRpc(topic, payload)) return;
-
-    // 2) Domain 主题分发（顺序: state_changed → will → alarm → waveform → lowfreq）
     if (topic.includes('/events/state_changed')) {
       try {
         const event = JSON.parse(new TextDecoder().decode(payload)) as StateChangedEvent;
@@ -96,24 +77,12 @@ export function setupRouter(pool: ConnectionPool): () => void {
         if (mqttState.willReceived) {
           mqttState.clearWill();
         }
-      } catch {
-        // 解析失败，静默跳过这条消息
-      }
-    } else if (topic.includes('/events/will')) {
-      try {
-        const will = JSON.parse(new TextDecoder().decode(payload)) as WillMessage;
-        const machineId = topic.split('/')[1];
-        useMqttStore.getState().setWill(machineId);
-      } catch {
-        // 解析失败，静默跳过这条消息
-      }
+      } catch { /* 解析失败，静默跳过 */ }
     } else if (topic.includes('/events/device_alarm')) {
       try {
         const alarm = JSON.parse(new TextDecoder().decode(payload)) as DeviceAlarm;
         useAlarmStore.getState().add(alarm);
-      } catch {
-        // 解析失败，静默跳过这条消息
-      }
+      } catch { /* 解析失败，静默跳过 */ }
     } else if (topic.includes('/waveform/ch1')) {
       const data = parseWaveformBinary(payload.buffer);
       useWaveformStore.getState().appendCh1(data, Date.now());
@@ -124,9 +93,7 @@ export function setupRouter(pool: ConnectionPool): () => void {
       try {
         const sample = JSON.parse(new TextDecoder().decode(payload)) as LowFreqSample;
         useDataStore.getState().append(sample);
-      } catch {
-        // 解析失败，静默跳过这条消息
-      }
+      } catch { /* 解析失败，静默跳过 */ }
     }
   };
   pool.onMessage(messageListener);
@@ -134,73 +101,5 @@ export function setupRouter(pool: ConnectionPool): () => void {
   return () => {
     pool.offStateChange(stateListener);
     pool.offMessage(messageListener);
-  };
-}
-
-// ── 向后兼容：原单连接版本（标记 @deprecated） ──
-
-/** @deprecated 使用 setupRouter(pool) 替代 */
-export function setupMqttRouter(client: MqttClientLike): void {
-  client.onMessage = (topic: string, payload: Uint8Array) => {
-    if (topic.startsWith('$SYS/brokers/')) {
-      const parts = topic.split('/');
-      const clientId = parts[4];
-      const isConnected = parts[5] === 'connected';
-      try {
-        const event = JSON.parse(new TextDecoder().decode(payload)) as SysClientEvent;
-        useDeviceStore.getState().setOnline(clientId, event.connected ?? isConnected);
-      } catch {
-        useDeviceStore.getState().setOnline(clientId, isConnected);
-      }
-      return;
-    }
-
-    if (tryResolveRpc(topic, payload)) return;
-
-    if (topic.includes('/waveform/ch1')) {
-      const data = parseWaveformBinary(payload.buffer);
-      useWaveformStore.getState().appendCh1(data, Date.now());
-    } else if (topic.includes('/waveform/ch2')) {
-      const data = parseWaveformBinary(payload.buffer);
-      useWaveformStore.getState().appendCh2(data, Date.now());
-    } else if (topic.includes('/events/state_changed')) {
-      try {
-        const event = JSON.parse(new TextDecoder().decode(payload)) as StateChangedEvent;
-        if (event.state?.collector) {
-          useCollectorStore.getState().applyState(event.state.collector);
-        }
-        if (event.state?.laser) {
-          useLaserStore.getState().applyState(event.state.laser);
-        }
-        const mqttState = useMqttStore.getState();
-        if (mqttState.willReceived) {
-          mqttState.clearWill();
-        }
-      } catch {
-        // 解析失败，静默跳过这条消息
-      }
-    } else if (topic.includes('/events/will')) {
-      try {
-        const will = JSON.parse(new TextDecoder().decode(payload)) as WillMessage;
-        const machineId = topic.split('/')[1];
-        useMqttStore.getState().setWill(machineId);
-      } catch {
-        // 解析失败，静默跳过这条消息
-      }
-    } else if (topic.includes('/events/device_alarm')) {
-      try {
-        const alarm = JSON.parse(new TextDecoder().decode(payload)) as DeviceAlarm;
-        useAlarmStore.getState().add(alarm);
-      } catch {
-        // 解析失败，静默跳过这条消息
-      }
-    } else if (topic.includes('/lowfreq')) {
-      try {
-        const sample = JSON.parse(new TextDecoder().decode(payload)) as LowFreqSample;
-        useDataStore.getState().append(sample);
-      } catch {
-        // 解析失败，静默跳过这条消息
-      }
-    }
   };
 }

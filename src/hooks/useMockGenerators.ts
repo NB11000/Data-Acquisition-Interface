@@ -5,19 +5,25 @@ import { useCollectorStore } from '../stores/collectorStore';
 import { useServerStore } from '../stores/serverStore';
 import { MQTT_MODE } from '../env';
 import type { MqttClientLike } from '../mqtt/mqttClientLike';
+import type { DeviceStatusPayload } from '../mqtt/types';
 import { startMockWaveform } from '../mock/mockWaveform';
 import { startMockLowFreq } from '../mock/mockLowFreq';
 
-function injectMockSysConnected(client: MqttClientLike, deviceId: string): void {
-  const sysTopic = `$SYS/brokers/emqx/clients/${deviceId}/connected`;
-  const sysPayload = new TextEncoder().encode(JSON.stringify({
-    connected: true,
-    clientid: deviceId,
-  }));
-  client.injectMessage(sysTopic, sysPayload);
+function injectMockDeviceOnline(client: MqttClientLike, deviceId: string): void {
+  const topic = `daq/${deviceId}/events/will`;
+  const now = Date.now();
+  const payload: DeviceStatusPayload = {
+    status: "online",
+    ts: now,
+    eventType: "device_online",
+    source: "device",
+    message: "设备已上线",
+    timestamp: new Date().toISOString(),
+  };
+  client.injectMessage(topic, new TextEncoder().encode(JSON.stringify(payload)));
 }
 
-/** Mock 模式专用 Hook：$SYS 注入 + 波形/低频生成器 */
+/** Mock 模式专用 Hook：上线注入 + 波形/低频生成器 */
 export function useMockGenerators(): void {
   if (MQTT_MODE !== 'mock') return;
 
@@ -25,20 +31,19 @@ export function useMockGenerators(): void {
   const devices = useDeviceStore((s) => s.devices);
   const acquiring = useCollectorStore((s) => s.acquiring);
   const deviceOpened = useCollectorStore((s) => s.deviceOpened);
-  const sysInjectedRef = useRef(new Set<string>());
+  const willInjectedRef = useRef(new Set<string>());
 
-  // ── 连接建立时注入 $SYS 使设备显示在线 ──
+  // ── 连接建立时注入 events/will 使设备显示在线 ──
   useEffect(() => {
     const pool = getPool();
     const servers = useServerStore.getState().servers;
 
     const onStateChange = ({ serverId, state }: { serverId: string; state: string }) => {
       if (state !== 'connected') {
-        // 断连/重连中/失败时清空该服务器下设备的注入记录，重连后重新注入 $SYS
         const allDevices = useDeviceStore.getState().devices;
         for (const d of allDevices) {
           if (d.serverId === serverId) {
-            sysInjectedRef.current.delete(d.id);
+            willInjectedRef.current.delete(d.id);
           }
         }
         return;
@@ -47,24 +52,23 @@ export function useMockGenerators(): void {
       if (!client?.isConnected) return;
       const allDevices = useDeviceStore.getState().devices;
       for (const d of allDevices) {
-        if (!sysInjectedRef.current.has(d.id)) {
-          sysInjectedRef.current.add(d.id);
-          injectMockSysConnected(client, d.id);
+        if (!willInjectedRef.current.has(d.id)) {
+          willInjectedRef.current.add(d.id);
+          injectMockDeviceOnline(client, d.id);
         }
       }
     };
 
     pool.onStateChange(onStateChange);
 
-    // 初始已连接的服务器也注入
     for (const server of servers) {
       const client = pool.getClient(server.id);
       if (client?.isConnected) {
         const allDevices = useDeviceStore.getState().devices;
         for (const d of allDevices) {
-          if (!sysInjectedRef.current.has(d.id)) {
-            sysInjectedRef.current.add(d.id);
-            injectMockSysConnected(client, d.id);
+          if (!willInjectedRef.current.has(d.id)) {
+            willInjectedRef.current.add(d.id);
+            injectMockDeviceOnline(client, d.id);
           }
         }
       }
@@ -75,17 +79,17 @@ export function useMockGenerators(): void {
     };
   }, []);
 
-  // ── 新添加设备注入 $SYS ──
+  // ── 新添加设备注入 events/will ──
   useEffect(() => {
     const pool = getPool();
     for (const d of devices) {
-      if (sysInjectedRef.current.has(d.id)) continue;
-      sysInjectedRef.current.add(d.id);
+      if (willInjectedRef.current.has(d.id)) continue;
+      willInjectedRef.current.add(d.id);
       const server = useServerStore.getState().servers.find((s) => s.id === d.serverId);
       if (!server) continue;
       const client = pool.getClient(server.id);
       if (!client || !client.isConnected) continue;
-      injectMockSysConnected(client, d.id);
+      injectMockDeviceOnline(client, d.id);
     }
   }, [devices]);
 

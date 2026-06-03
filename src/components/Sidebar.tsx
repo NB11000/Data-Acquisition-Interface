@@ -23,7 +23,7 @@ function connectionStateColor(state: PoolConnectionState): string {
 }
 
 /** 设备在线状态图标 */
-function DeviceStatusIcon({ isOnline, serverConnected }: { isOnline: boolean | null; serverConnected: boolean }) {
+function DeviceStatusIcon({ isOnline, serverConnected, lastEventType }: { isOnline: boolean | null; serverConnected: boolean; lastEventType?: string }) {
   if (!serverConnected) {
     return <QuestionCircleOutlined style={{ color: '#8c8c8c', fontSize: 12 }} />;
   }
@@ -31,7 +31,8 @@ function DeviceStatusIcon({ isOnline, serverConnected }: { isOnline: boolean | n
     return <span className={styles.dot} style={{ backgroundColor: '#52c41a' }} />;
   }
   if (isOnline === false) {
-    return <span className={styles.dot} style={{ backgroundColor: '#8c8c8c' }} />;
+    const isCrashed = lastEventType === 'process_crashed';
+    return <span className={styles.dot} style={{ backgroundColor: isCrashed ? '#ff4d4f' : '#8c8c8c' }} />;
   }
   return <QuestionCircleOutlined style={{ color: '#8c8c8c', fontSize: 12 }} />;
 }
@@ -105,7 +106,7 @@ export function Sidebar({ onAddDevice, onEditDevice }: Props) {
             key: `device-${d.id}`,
             title: (
               <span className={isSelected ? styles.selectedDevice : ''}>
-                <DeviceStatusIcon isOnline={d.isOnline} serverConnected={isConnected} />
+                <DeviceStatusIcon isOnline={d.isOnline} serverConnected={isConnected} lastEventType={d.lastEventType} />
                 <span style={{ marginLeft: 6 }}>{d.name}</span>
               </span>
             ),

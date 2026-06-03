@@ -20,13 +20,13 @@ _Avoid_: 机器、采集站
 _Avoid_: 连接工厂
 
 **Resident Topics (常驻主题)**:
-连接建立后始终订阅、不随 Device 切换取消的 MQTT 主题。包括服务器级（$SYS）和设备级（will、state_changed、device_alarm、RPC 响应通配符）。
+连接建立后始终订阅、不随 Device 切换取消的 MQTT 主题。包括服务器级（通配符 will 状态主题）和设备级（state_changed、device_alarm、RPC 响应通配符）。
 
 **Following Topics (跟随主题)**:
 随当前选中 Device 切换而变更订阅的 MQTT 主题。包括波形、低频数据和检测告警。
 
 **Online Client Cache (在线客户端缓存)**:
-连接池内部维护的 `serverId → Set<clientId>` 映射，通过 $SYS connected/disconnected 事件实时更新，用于自动发现和在线状态查询。
+连接池内部维护的 `serverId → Set<clientId>` 映射，通过 `events/will` 消息的 `status` 字段实时更新，用于自动发现和在线状态查询。
 
 ### 数据模型
 
@@ -53,6 +53,7 @@ interface Device {
   name: string;          // 显示名称
   serverId: string;      // 所属 MqttServer 的 UUID
   isOnline: boolean | null;  // 运行时状态
+  lastEventType?: 'device_online' | 'device_offline' | 'process_crashed';  // 离/在线原因
 }
 ```
 
@@ -61,9 +62,14 @@ interface Device {
 ### 状态
 
 **Device.isOnline**:
-- `true`: 设备在线（通过 $SYS 事件确认）
-- `false`: 设备离线
+- `true`: 设备在线（通过 `events/will` 消息 `status:"online"` 确认）
+- `false`: 设备离线（通过 `events/will` 消息 `status:"offline"` 确认）
 - `null`: 未知（所属 MqttServer 连接未建立或已断开）
+
+**Device.lastEventType**:
+- `"device_online"`: 正常上线
+- `"device_offline"`: 主动正常下线
+- `"process_crashed"`: 崩溃（Broker Will 代发），前端据此显示红色告警态
 
 **MqttServer 连接状态**:
 - **已连接 (connected)**: 绿点，连接正常
@@ -87,15 +93,15 @@ interface Device {
 | 场景 | 行为 |
 |------|------|
 | **页面初始化** | 并行加载 localStorage 中所有 MqttServer 和 Device；为每个 Server 并行建连；UI 立即渲染（逐个显示连接状态变化）。部分连接失败不影响全局，汇总 toast "N 台服务器中 M 台连接失败"。 |
-| **新增服务器** | 创建连接，订阅 $SYS 主题。若有已关联 Device，追加订阅其设备级常驻主题。 |
+| **新增服务器** | 创建连接，订阅 `daq/+/events/will` 通配符主题。若有已关联 Device，追加订阅其设备级常驻主题。 |
 | **删除服务器** | 弹确认框（列出将被影响的 N 个 Device 名称），确认后断开并销毁连接，其下所有 Device 一并删除；取消所有重连 timer。 |
 | **编辑服务器（仅改名称）** | 仅更新 localStorage 和 store，不重连。 |
 | **编辑服务器（改连接参数）** | 弹确认框。若 Broker URL 变更，额外确认"是否移除该服务器下的 N 个设备？"。断开旧连接 → 用新配置建新连接 → 重新订阅所有 Device 常驻主题。 |
-| **新增 Device（到已有服务器）** | 追加订阅该 Device 的 4 个设备级常驻主题。 |
+| **新增 Device（到已有服务器）** | 追加订阅该 Device 的 3 个设备级常驻主题（state_changed、device_alarm、RPC 响应）。 |
 | **删除 Device** | 取消该 Device 的常驻主题订阅。若该服务器下再无 Device，断开并销毁连接。 |
 | **设备切换（同服务器）** | 取消旧 Device 的跟随主题 → 订阅新 Device 的跟随主题；复用连接。 |
 | **设备切换（跨服务器）** | 切换连接：源连接保留，取消旧 Device 跟随主题（若连接 alive）；目标连接订阅新 Device 跟随主题。 |
-| **连接失败** | 不影响其他连接；该服务器下所有 Device `isOnline = null`；具体错误信息（Broker 不可达/认证拒绝/TLS 失败/超时）展示在服务器卡片上。 |
+| **连接失败** | 不影响其他连接；该服务器下所有 Device `isOnline = null`，`lastEventType` 置空；具体错误信息（Broker 不可达/认证拒绝/TLS 失败/超时）展示在服务器卡片上。 |
 | **重连成功** | 补订阅该服务器下所有 Device 的设备级常驻主题（不补跟随主题）。 |
 | **重连期间设备切换** | unsubscribe 操作检查连接是否 alive，若已断则跳过。 |
 | **页面关闭** | 不做任何处理，由 Broker keepalive 超时自然断开。 |
@@ -105,7 +111,7 @@ interface Device {
 ```
 Map<serverId, MqttClient>          // 连接池
 Map<deviceId, serverId>            // Device 到 Server 的逆向映射
-Map<serverId, Set<clientId>>       // 在线客户端缓存（从 $SYS 事件维护）
+Map<serverId, Set<clientId>>       // 在线客户端缓存（从 events/will 消息维护）
 ```
 
 ## 主题订阅分类
@@ -114,14 +120,12 @@ Map<serverId, Set<clientId>>       // 在线客户端缓存（从 $SYS 事件维
 
 | 主题 | 用途 |
 |------|------|
-| `$SYS/brokers/+/clients/+/connected` | 监控该服务器下所有设备上线 |
-| `$SYS/brokers/+/clients/+/disconnected` | 监控该服务器下所有设备下线 |
+| `daq/+/events/will` | Retain=true，通配符订阅，监控该服务器下所有设备在线/离线/崩溃 |
 
 ### 设备级常驻主题（每新增/删除 Device 时增/减订阅）
 
 | 主题 | 用途 |
 |------|------|
-| `daq/{MachineId}/events/will` | Retain=true，感知设备崩溃 |
 | `daq/{MachineId}/events/state_changed` | 侧边栏实时显示所有设备状态 |
 | `daq/{MachineId}/events/device_alarm` | Retain=true，告警 |
 | `$rpc/{MachineId}/+/+/response` | RPC 响应 |
@@ -137,10 +141,20 @@ Map<serverId, Set<clientId>>       // 在线客户端缓存（从 $SYS 事件维
 
 ## 在线状态监控
 
-- 通过 `$SYS` 主题实时获知设备上线/下线
-- 每条连接的 onMessage 闭包绑定 serverId，$SYS 事件只更新该 serverId 下的 Device
-- 若某条服务器连接未建立，其下 Device 的 `isOnline` 为 `null`，侧边栏按服务器分组显示"未知"状态
-- Retain 消息（Will/Alarm）照单全收 —— 设备端须在恢复时清除自身的 retain 标志
+设备在线状态通过 `events/will` 主题的 retained 消息实现，不再依赖 `$SYS`。三种场景共用同一 topic，retained 覆盖保证最新状态：
+
+| 场景 | status | eventType | 触发机制 |
+|------|--------|-----------|---------|
+| 设备上线 | `"online"` | `"device_online"` | 设备 CONNACK 后 publish |
+| 设备正常下线 | `"offline"` | `"device_offline"` | 设备 DISCONNECT 前 publish |
+| 设备崩溃 | `"offline"` | `"process_crashed"` | Broker 检测 keepalive 超时后代发 Will |
+
+- 前端通过通配符 `daq/+/events/will` 订阅，连接时 Broker 立即推送所有 retained 消息（全量状态恢复），后续增量实时更新
+- MachineId 从 topic 路径第二段提取 `daq/{MachineId}/events/will`，payload 不携带 deviceId
+- 崩溃场景存在 ~45s 窗口期（keepalive 超时），此期间不做"疑似离线"处理
+- 崩溃消息（`eventType:"process_crashed"`）触发 StatusControlBar 红色 Alert Banner，收到 `state_changed` 后自动清除
+- 幂等：非崩溃消息按 `ts` 去重；崩溃消息按 `lastEventType` 去重
+- 若某条服务器连接未建立，其下 Device 的 `isOnline` 为 `null`，`lastEventType` 同步置空
 
 ## RPC
 
@@ -155,9 +169,9 @@ Map<serverId, Set<clientId>>       // 在线客户端缓存（从 $SYS 事件维
 1. 打开"添加设备"模态框 → 选择 MqttServer（下拉框，含 [+ 新增] 按钮）
 2. 若服务器列表为空 → 模态框自动切到"添加 MQTT 服务器"界面 → 保存后回到添加设备
 3. 两个方式并行可用：
-   - **自动发现**: 读取 Online Client Cache，列出该服务器下所有在线客户端 ID（暂不过滤前缀）
+   - **自动发现**: 读取 Online Client Cache（来自 `events/will` retained 消息），列出该服务器下当前在线客户端 ID
    - **手动添加**: 输入 Device ID + Name，不验证设备是否存在
-4. 添加后持久化到 localStorage，订阅该 Device 的 4 个设备级常驻主题
+4. 添加后持久化到 localStorage，订阅该 Device 的 3 个设备级常驻主题（state_changed、device_alarm、RPC 响应）
 
 ### MqttServer 去重
 
@@ -166,6 +180,7 @@ Map<serverId, Set<clientId>>       // 在线客户端缓存（从 $SYS 事件维
 ## 侧边栏
 
 - Device 按 MqttServer 分组展示（树形结构，可展开/折叠）
+- 设备状态图标：绿色圆点（在线）、灰色圆点（离线）、红色圆点（崩溃）、问号图标（未知/连接断开）
 - 连接断开的服务器节点灰显，其下 Device 全部显示"未知"图标；默认展开
 - 搜索：匹配的 Device 高亮，其所属服务器节点自动展开；无匹配的服务器节点隐藏；清空搜索恢复完整树
 
@@ -189,7 +204,8 @@ Map<serverId, Set<clientId>>       // 在线客户端缓存（从 $SYS 事件维
 ## 数据流
 
 ```
-设备 → Broker → 前端（通过对应 serverId 的连接池连接订阅）
+设备 → publish retained → Broker → 前端通配符订阅 daq/+/events/will → deviceStore 更新
+设备 → Broker → 前端（通过对应 serverId 的连接池连接订阅波形/低频/检测等业务主题）
 前端 → RPC 请求 → 查 deviceMap 找到 serverId → 通过对应连接 → Broker → 设备
 设备 → RPC 响应 → Broker → 前端对应连接的 onMessage → RPC 层匹配 correlationId
 ```
@@ -216,3 +232,4 @@ Map<serverId, Set<clientId>>       // 在线客户端缓存（从 $SYS 事件维
 
 - "connection key" 曾指 `brokerUrl:port:username:password` 和 `serverId` 两种含义 → 已统一为 `serverId`。`port` 字段已从 MqttServer 移除，合并入 brokerUrl。
 - ADR 0001 的"每设备独立配置"设计已被 ADR 0003 取代
+- `events/will` 主题命名是历史遗留——实际承载在线/离线/崩溃三种事件，不限于 Will Message。因设备侧已完成对接，不做改名。

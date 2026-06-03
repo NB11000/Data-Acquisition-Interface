@@ -124,27 +124,6 @@ describe('Router', () => {
     expect(useMqttStore.getState().willReceived).toBe(false); // will 清除
   });
 
-  it('will 主题分派到 mqtt store', async () => {
-    const { setupRouter } = await import('./router');
-    const { useMqttStore } = await import('../stores/mqttStore');
-    useMqttStore.setState({ willReceived: false, willDeviceId: null });
-
-    pool.create(makeServer());
-    setupRouter(pool);
-
-    const client = spyFactory.clients[0];
-    const payload = new TextEncoder().encode(JSON.stringify({
-      eventType: 'process_crashed',
-      source: 'mqtt_broker',
-      reason: 'will_message',
-      message: 'device offline',
-    }));
-    client.onMessage?.('daq/machine-02/events/will', payload);
-
-    expect(useMqttStore.getState().willReceived).toBe(true);
-    expect(useMqttStore.getState().willDeviceId).toBe('machine-02');
-  });
-
   it('device_alarm 主题分派到 alarm store', async () => {
     const { setupRouter } = await import('./router');
     const { useAlarmStore } = await import('../stores/alarmStore');
@@ -211,42 +190,237 @@ describe('Router', () => {
     expect(useDataStore.getState().samples).toHaveLength(0);
   });
 
-  // ── RED 4: serverId 在消息上下文中传递 ──
+  // ── events/will 上线 ──
 
-  it('serverId 正确传递到消息上下文', async () => {
-    const { setupRouter, onSysConnected, onSysDisconnected } = await import('./router');
+  it('上线消息：setOnline + addOnlineClient + clearWill', async () => {
+    const { setupRouter } = await import('./router');
+    const { useDeviceStore } = await import('../stores/deviceStore');
+    const { useMqttStore } = await import('../stores/mqttStore');
+
+    useDeviceStore.setState({
+      devices: [{ id: 'dev-01', name: 'd1', serverId: 's1', isOnline: null, lastEventType: undefined }],
+    });
+    useMqttStore.setState({ willReceived: true, willDeviceId: 'dev-01' });
+
+    const setOnlineSpy = vi.spyOn(useDeviceStore.getState(), 'setOnline');
+    const addOnlineSpy = vi.spyOn(pool, 'addOnlineClient');
+    const clearWillSpy = vi.spyOn(useMqttStore.getState(), 'clearWill');
+
+    pool.create(makeServer({ id: 's1' }));
+    setupRouter(pool);
+
+    const client = spyFactory.clients[0];
+    const payload = new TextEncoder().encode(JSON.stringify({
+      status: 'online', ts: 1000, eventType: 'device_online',
+      source: 'device', message: '设备上线', timestamp: new Date().toISOString(),
+    }));
+    client.onMessage?.('daq/dev-01/events/will', payload);
+
+    expect(setOnlineSpy).toHaveBeenCalledWith('dev-01', true, 'device_online');
+    expect(addOnlineSpy).toHaveBeenCalledWith('s1', 'dev-01');
+    expect(clearWillSpy).toHaveBeenCalled();
+  });
+
+  it('正常下线：setOnline + removeOnlineClient', async () => {
+    const { setupRouter } = await import('./router');
+    const { useDeviceStore } = await import('../stores/deviceStore');
+
+    useDeviceStore.setState({
+      devices: [{ id: 'dev-02', name: 'd2', serverId: 's1', isOnline: true, lastEventType: 'device_online' }],
+    });
+
+    const setOnlineSpy = vi.spyOn(useDeviceStore.getState(), 'setOnline');
+    const removeOnlineSpy = vi.spyOn(pool, 'removeOnlineClient');
+
+    pool.create(makeServer({ id: 's1' }));
+    setupRouter(pool);
+
+    const client = spyFactory.clients[0];
+    const payload = new TextEncoder().encode(JSON.stringify({
+      status: 'offline', ts: 2000, eventType: 'device_offline',
+      source: 'device', message: '设备下线', timestamp: new Date().toISOString(),
+    }));
+    client.onMessage?.('daq/dev-02/events/will', payload);
+
+    expect(setOnlineSpy).toHaveBeenCalledWith('dev-02', false, 'device_offline');
+    expect(removeOnlineSpy).toHaveBeenCalledWith('s1', 'dev-02');
+  });
+
+  it('崩溃：setOnline + setWill + removeOnlineClient', async () => {
+    const { setupRouter } = await import('./router');
+    const { useDeviceStore } = await import('../stores/deviceStore');
+    const { useMqttStore } = await import('../stores/mqttStore');
+
+    useDeviceStore.setState({
+      devices: [{ id: 'dev-03', name: 'd3', serverId: 's1', isOnline: true, lastEventType: 'device_online' }],
+    });
+    useMqttStore.setState({ willReceived: false, willDeviceId: null });
+
+    const setOnlineSpy = vi.spyOn(useDeviceStore.getState(), 'setOnline');
+    const setWillSpy = vi.spyOn(useMqttStore.getState(), 'setWill');
+    const removeOnlineSpy = vi.spyOn(pool, 'removeOnlineClient');
+
+    pool.create(makeServer({ id: 's1' }));
+    setupRouter(pool);
+
+    const client = spyFactory.clients[0];
+    const payload = new TextEncoder().encode(JSON.stringify({
+      status: 'offline', ts: 0, eventType: 'process_crashed',
+      source: 'mqtt_broker', message: '进程崩溃', timestamp: '0001-01-01T00:00:00Z',
+    }));
+    client.onMessage?.('daq/dev-03/events/will', payload);
+
+    expect(setOnlineSpy).toHaveBeenCalledWith('dev-03', false, 'process_crashed');
+    expect(setWillSpy).toHaveBeenCalledWith('dev-03');
+    expect(removeOnlineSpy).toHaveBeenCalledWith('s1', 'dev-03');
+  });
+
+  it('陌生 MachineId：setOnline 不调用', async () => {
+    const { setupRouter } = await import('./router');
     const { useDeviceStore } = await import('../stores/deviceStore');
 
     useDeviceStore.setState({ devices: [] });
 
-    // 注册 $SYS 回调
-    const connectedSpy = vi.fn();
-    const disconnectedSpy = vi.fn();
-    onSysConnected(connectedSpy);
-    onSysDisconnected(disconnectedSpy);
+    const setOnlineSpy = vi.spyOn(useDeviceStore.getState(), 'setOnline');
+    const addOnlineSpy = vi.spyOn(pool, 'addOnlineClient');
 
-    pool.create(makeServer({ id: 'server-a' }));
-    pool.create(makeServer({ id: 'server-b' }));
+    pool.create(makeServer({ id: 's1' }));
     setupRouter(pool);
 
-    // server-a 上发 connected 消息
-    const clientA = spyFactory.clients[0];
-    const payloadA = new TextEncoder().encode(JSON.stringify({
-      connected: true, clientid: 'device-01',
+    const client = spyFactory.clients[0];
+    const payload = new TextEncoder().encode(JSON.stringify({
+      status: 'online', ts: 1000, eventType: 'device_online',
+      source: 'device', message: '上线', timestamp: new Date().toISOString(),
     }));
-    clientA.onMessage?.('$SYS/brokers/emqx/clients/device-01/connected', payloadA);
+    client.onMessage?.('daq/unknown-dev/events/will', payload);
 
-    expect(connectedSpy).toHaveBeenCalledWith('server-a', 'device-01', true);
-
-    // server-b 上发 disconnected 消息
-    const clientB = spyFactory.clients[1];
-    const payloadB = new TextEncoder().encode(JSON.stringify({
-      connected: false, clientid: 'device-02',
-    }));
-    clientB.onMessage?.('$SYS/brokers/emqx/clients/device-02/disconnected', payloadB);
-
-    expect(disconnectedSpy).toHaveBeenCalledWith('server-b', 'device-02', false);
+    expect(setOnlineSpy).not.toHaveBeenCalled();
+    expect(addOnlineSpy).not.toHaveBeenCalled();
   });
+
+  it('ts 幂等：新 ts ≤ 旧 ts → 跳过', async () => {
+    const { setupRouter } = await import('./router');
+    const { useDeviceStore } = await import('../stores/deviceStore');
+
+    useDeviceStore.setState({
+      devices: [{ id: 'dev-05', name: 'd5', serverId: 's1', isOnline: true, lastEventType: 'device_online', lastTs: 2000 }],
+    });
+
+    const setOnlineSpy = vi.spyOn(useDeviceStore.getState(), 'setOnline');
+
+    pool.create(makeServer({ id: 's1' }));
+    setupRouter(pool);
+
+    const client = spyFactory.clients[0];
+    const payload = new TextEncoder().encode(JSON.stringify({
+      status: 'online', ts: 500, eventType: 'device_online',
+      source: 'device', message: '旧消息', timestamp: new Date().toISOString(),
+    }));
+    client.onMessage?.('daq/dev-05/events/will', payload);
+
+    expect(setOnlineSpy).not.toHaveBeenCalled();
+  });
+
+  it('ts 幂等：新 ts > 旧 ts → 执行更新', async () => {
+    const { setupRouter } = await import('./router');
+    const { useDeviceStore } = await import('../stores/deviceStore');
+
+    useDeviceStore.setState({
+      devices: [{ id: 'dev-06', name: 'd6', serverId: 's1', isOnline: false, lastEventType: 'device_offline', lastTs: 1000 }],
+    });
+
+    const setOnlineSpy = vi.spyOn(useDeviceStore.getState(), 'setOnline');
+
+    pool.create(makeServer({ id: 's1' }));
+    setupRouter(pool);
+
+    const client = spyFactory.clients[0];
+    const payload = new TextEncoder().encode(JSON.stringify({
+      status: 'online', ts: 2000, eventType: 'device_online',
+      source: 'device', message: '新消息', timestamp: new Date().toISOString(),
+    }));
+    client.onMessage?.('daq/dev-06/events/will', payload);
+
+    expect(setOnlineSpy).toHaveBeenCalledWith('dev-06', true, 'device_online');
+  });
+
+  it('崩溃幂等：lastEventType 已是 process_crashed → 跳过', async () => {
+    const { setupRouter } = await import('./router');
+    const { useDeviceStore } = await import('../stores/deviceStore');
+    const { useMqttStore } = await import('../stores/mqttStore');
+
+    useDeviceStore.setState({
+      devices: [{ id: 'dev-07', name: 'd7', serverId: 's1', isOnline: false, lastEventType: 'process_crashed' }],
+    });
+    useMqttStore.setState({ willReceived: true, willDeviceId: 'dev-07' });
+
+    const setOnlineSpy = vi.spyOn(useDeviceStore.getState(), 'setOnline');
+    const setWillSpy = vi.spyOn(useMqttStore.getState(), 'setWill');
+
+    pool.create(makeServer({ id: 's1' }));
+    setupRouter(pool);
+
+    const client = spyFactory.clients[0];
+    const payload = new TextEncoder().encode(JSON.stringify({
+      status: 'offline', ts: 0, eventType: 'process_crashed',
+      source: 'mqtt_broker', message: '重复崩溃', timestamp: '0001-01-01T00:00:00Z',
+    }));
+    client.onMessage?.('daq/dev-07/events/will', payload);
+
+    expect(setOnlineSpy).not.toHaveBeenCalled();
+    expect(setWillSpy).not.toHaveBeenCalled();
+  });
+
+  it('崩溃幂等：lastEventType 非崩溃 → 执行更新', async () => {
+    const { setupRouter } = await import('./router');
+    const { useDeviceStore } = await import('../stores/deviceStore');
+
+    useDeviceStore.setState({
+      devices: [{ id: 'dev-08', name: 'd8', serverId: 's1', isOnline: true, lastEventType: 'device_online' }],
+    });
+
+    const setOnlineSpy = vi.spyOn(useDeviceStore.getState(), 'setOnline');
+
+    pool.create(makeServer({ id: 's1' }));
+    setupRouter(pool);
+
+    const client = spyFactory.clients[0];
+    const payload = new TextEncoder().encode(JSON.stringify({
+      status: 'offline', ts: 0, eventType: 'process_crashed',
+      source: 'mqtt_broker', message: '崩溃', timestamp: '0001-01-01T00:00:00Z',
+    }));
+    client.onMessage?.('daq/dev-08/events/will', payload);
+
+    expect(setOnlineSpy).toHaveBeenCalledWith('dev-08', false, 'process_crashed');
+  });
+
+  it('崩溃本地时间：ts=0 也不阻塞', async () => {
+    const { setupRouter } = await import('./router');
+    const { useDeviceStore } = await import('../stores/deviceStore');
+    const { useMqttStore } = await import('../stores/mqttStore');
+
+    useDeviceStore.setState({
+      devices: [{ id: 'dev-09', name: 'd9', serverId: 's1', isOnline: true, lastEventType: 'device_online', lastTs: 5000 }],
+    });
+    useMqttStore.setState({ willReceived: false });
+
+    const setOnlineSpy = vi.spyOn(useDeviceStore.getState(), 'setOnline');
+    const setWillSpy = vi.spyOn(useMqttStore.getState(), 'setWill');
+
+    pool.create(makeServer({ id: 's1' }));
+    setupRouter(pool);
+
+    const client = spyFactory.clients[0];
+    const payload = new TextEncoder().encode(JSON.stringify({
+      status: 'offline', ts: 0, eventType: 'process_crashed',
+      source: 'mqtt_broker', message: '崩溃(ts=0)', timestamp: '0001-01-01T00:00:00Z',
+    }));
+    client.onMessage?.('daq/dev-09/events/will', payload);
+
+    expect(setOnlineSpy).toHaveBeenCalledWith('dev-09', false, 'process_crashed');
+    expect(setWillSpy).toHaveBeenCalledWith('dev-09');
+  });
+
 });
 
 // ── 辅助函数：创建一个待处理的 RPC ──

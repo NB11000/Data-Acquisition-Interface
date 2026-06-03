@@ -121,3 +121,13 @@ export interface LegacyDevice {
   tls: boolean;
   isOnline?: boolean;
 }
+
+/** 设备在线状态 Payload — events/will 主题的 6 字段消息 */
+export interface DeviceStatusPayload {
+  status: "online" | "offline";
+  ts: number;
+  eventType: "device_online" | "device_offline" | "process_crashed";
+  source: "device" | "mqtt_broker";
+  message: string;
+  timestamp: string;
+}

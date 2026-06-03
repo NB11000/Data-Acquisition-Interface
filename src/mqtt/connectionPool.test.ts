@@ -56,7 +56,7 @@ describe('ConnectionPool', () => {
     expect(pool.getState('s1')).toBe('disconnected');
   });
 
-  it('subscribeDevice → 订阅 4 个常驻主题', async () => {
+  it('subscribeDevice → 订阅 3 个常驻主题', async () => {
     const { ConnectionPool } = await import('./connectionPool');
     const spyFactory = createSpyFactory();
     const pool = new ConnectionPool(spyFactory);
@@ -67,11 +67,10 @@ describe('ConnectionPool', () => {
 
     pool.subscribeDevice('s1', 'machine-01');
 
-    expect(subscribeSpy).toHaveBeenCalledWith('daq/machine-01/events/will');
     expect(subscribeSpy).toHaveBeenCalledWith('daq/machine-01/events/state_changed');
     expect(subscribeSpy).toHaveBeenCalledWith('daq/machine-01/events/device_alarm');
     expect(subscribeSpy).toHaveBeenCalledWith('$rpc/machine-01/+/+/response');
-    expect(subscribeSpy).toHaveBeenCalledTimes(4);
+    expect(subscribeSpy).toHaveBeenCalledTimes(3);
   });
 
   it('update 仅变更 name → 不触发重连', async () => {
