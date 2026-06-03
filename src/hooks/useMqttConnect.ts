@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import type { ConnectionPool } from '../mqtt/connectionPool';
 import { getPool } from '../mqtt/pool';
 import { setupRouter } from '../mqtt/router';
 import { sendRpcCommand, clearPendingRpcs } from '../mqtt/rpc';
@@ -12,9 +13,55 @@ import { useAlarmStore } from '../stores/alarmStore';
 import { useServerStore, type PoolConnectionState as ConnectionState } from '../stores/serverStore';
 import { useMockGenerators } from './useMockGenerators';
 
+/** 发送 system-state RPC，失败 3 秒后重试一次 */
+function sendStateRpcWithRetry(pool: ConnectionPool, machineId: string) {
+  let retried = false;
+  const retryTimerRef: { current: ReturnType<typeof setTimeout> | null } = { current: null };
+
+  const handleResult = (result: Record<string, unknown>) => {
+    const state = result.state ?? result;
+    if (state && typeof state === 'object') {
+      const s = state as Record<string, unknown>;
+      if (s.collector) useCollectorStore.getState().applyState(s.collector as never);
+      if (s.laser) useLaserStore.getState().applyState(s.laser as never);
+    }
+  };
+
+  const doSend = () => {
+    sendRpcCommand(pool, machineId, 'system-state')
+      .then((result) => {
+        console.log('[system-state RPC 成功]', machineId, result);
+        handleResult(result as unknown as Record<string, unknown>);
+      })
+      .catch((err) => {
+        console.warn('[system-state RPC 失败]', machineId, (err as Error).message);
+        if (!retried) {
+          retried = true;
+          console.warn('[system-state RPC 3s 后重试]', machineId);
+          retryTimerRef.current = setTimeout(() => {
+            sendRpcCommand(pool, machineId, 'system-state')
+              .then((result) => {
+                handleResult(result as unknown as Record<string, unknown>);
+              })
+              .catch((retryErr) => {
+                console.error('[system-state RPC 重试失败]', machineId, (retryErr as Error).message);
+              });
+          }, 3000);
+        }
+      });
+  };
+
+  doSend();
+
+  return () => {
+    if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
+  };
+}
+
 export function useMqttConnect(): void {
   const selectedId = useDeviceStore((s) => s.selectedId);
   const prevSelectedRef = useRef<string | null>(null);
+  const cancelStateRpcRef = useRef<(() => void) | null>(null);
 
   // Mock 模式：启动 $SYS 注入 + 波形/低频生成器
   useMockGenerators();
@@ -40,6 +87,19 @@ export function useMqttConnect(): void {
       if (state === 'disconnected' || state === 'failed') {
         clearPendingRpcs();
       }
+
+      // MQTT 连通后立即为当前选中设备订阅主题并发起 RPC
+      if (state === 'connected') {
+        const currentId = useDeviceStore.getState().selectedId;
+        if (!currentId) return;
+        const device = useDeviceStore.getState().devices.find((d) => d.id === currentId);
+        if (!device || device.serverId !== serverId) return;
+
+        pool.subscribeDevice(serverId, currentId);
+        pool.switchFollowing(serverId, null, currentId);
+        cancelStateRpcRef.current?.();
+        cancelStateRpcRef.current = sendStateRpcWithRetry(pool, currentId);
+      }
     };
 
     pool.onStateChange(onStateChange);
@@ -51,26 +111,20 @@ export function useMqttConnect(): void {
       }
     }
 
-    // 为当前已选设备订阅主题
+    // StrictMode 重挂载兜底：连接已就绪时直接发起（onStateChange 可能已触发过，用 cancelStateRpcRef 去重）
     const currentId = useDeviceStore.getState().selectedId;
-    if (currentId) {
+    if (currentId && !cancelStateRpcRef.current) {
       const device = useDeviceStore.getState().devices.find((d) => d.id === currentId);
-      if (device) {
+      if (device && pool.isConnected(device.serverId)) {
         pool.subscribeDevice(device.serverId, currentId);
         pool.switchFollowing(device.serverId, null, currentId);
-        sendRpcCommand(pool, currentId, 'SYSTEM_STATE')
-          .then((result) => {
-            if (result.state) {
-              useCollectorStore.getState().applyState(result.state.collector);
-              useLaserStore.getState().applyState(result.state.laser);
-            }
-          })
-          .catch(() => {});
+        cancelStateRpcRef.current = sendStateRpcWithRetry(pool, currentId);
       }
       prevSelectedRef.current = currentId;
     }
 
     return () => {
+      cancelStateRpcRef.current?.();
       teardownRouter();
       pool.offStateChange(onStateChange);
     };
@@ -115,15 +169,9 @@ export function useMqttConnect(): void {
       pool.switchFollowing(device.serverId, null, selectedId);
     }
 
-    // 请求设备状态
-    sendRpcCommand(pool, selectedId, 'SYSTEM_STATE')
-      .then((result) => {
-        if (result.state) {
-          useCollectorStore.getState().applyState(result.state.collector);
-          useLaserStore.getState().applyState(result.state.laser);
-        }
-      })
-      .catch(() => {});
+    // 请求设备状态（含重试）
+    cancelStateRpcRef.current?.();
+    cancelStateRpcRef.current = sendStateRpcWithRetry(pool, selectedId);
 
     prevSelectedRef.current = selectedId;
   }, [selectedId]);

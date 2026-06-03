@@ -82,7 +82,7 @@ describe('Router', () => {
     const rpcPayload = new TextEncoder().encode(JSON.stringify({
       success: true, code: 'OK', message: 'ok', timestamp: new Date().toISOString(),
     }));
-    client.onMessage?.(`$rpc/machine-01/SYSTEM_STATE/${corrId}/response`, rpcPayload);
+    client.onMessage?.(`$rpc/machine-01/system-state/${corrId}/response`, rpcPayload);
 
     await vi.waitFor(() => expect(rpcResultSpy).toHaveBeenCalled());
     expect(rpcResultSpy).toHaveBeenCalledTimes(1);

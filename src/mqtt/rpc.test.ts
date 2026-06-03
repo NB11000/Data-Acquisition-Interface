@@ -68,7 +68,7 @@ describe('RPC', () => {
     const publishSpy = vi.spyOn(client, 'publish');
 
     // 发 RPC（MQTT_MODE 默认为 mock 时走 handleMockRpc；非 mock 时走 publish）
-    const promise = sendRpcCommand(pool, 'machine-01', 'SYSTEM_STATE');
+    const promise = sendRpcCommand(pool, 'machine-01', 'system-state');
 
     // 手动 resolve，不让测试挂起
     const pending = pendingRpcsForTest();
@@ -128,7 +128,7 @@ describe('RPC', () => {
     expect(pool.isConnected('s1')).toBe(true);
 
     const errorSpy = vi.fn();
-    sendRpcCommand(pool, 'machine-01', 'SYSTEM_STATE').catch(errorSpy);
+    sendRpcCommand(pool, 'machine-01', 'system-state').catch(errorSpy);
 
     expect(pendingRpcsForTest().size).toBe(1);
 
@@ -158,7 +158,7 @@ describe('RPC', () => {
     pool.create(makeServer({ id: 's1' }));
 
     const errorSpy = vi.fn();
-    sendRpcCommand(pool, 'machine-01', 'SYSTEM_STATE').catch(errorSpy);
+    sendRpcCommand(pool, 'machine-01', 'system-state').catch(errorSpy);
 
     // 模拟连接断开 — 调用 clearPendingRpcs
     clearPendingRpcs();

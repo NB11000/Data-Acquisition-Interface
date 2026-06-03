@@ -49,7 +49,7 @@ export function handleMockRpc(
     const currentState = ensureState(machineId);
 
     switch (method) {
-      case 'SYSTEM_STATE':
+      case 'system-state':
         result = {
           success: true,
           code: 'OK',
@@ -129,7 +129,7 @@ export function handleMockRpc(
     mockClient.injectMessage(responseTopic, payload);
 
     // 模拟真实设备行为：RPC 成功后推送 state_changed 事件
-    if (result.success && method !== 'SYSTEM_STATE') {
+    if (result.success && method !== 'system-state') {
       const stateEvent = {
         eventType: 'state_changed',
         source: method.startsWith('collector') ? 'collector' : 'laser',
