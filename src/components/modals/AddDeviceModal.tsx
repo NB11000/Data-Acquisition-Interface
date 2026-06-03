@@ -87,6 +87,7 @@ export function AddDeviceModal({ open, onClose }: Props) {
     }
 
     addDevice(device);
+    getPool().subscribeDevice(selectedServerId, device.id);
     message.success(`设备 "${device.name}" 已添加`);
     onClose();
   };

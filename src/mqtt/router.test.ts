@@ -295,7 +295,7 @@ describe('Router', () => {
     client.onMessage?.('daq/unknown-dev/events/will', payload);
 
     expect(setOnlineSpy).not.toHaveBeenCalled();
-    expect(addOnlineSpy).not.toHaveBeenCalled();
+    expect(addOnlineSpy).toHaveBeenCalledWith('s1', 'unknown-dev');
   });
 
   it('ts 幂等：新 ts ≤ 旧 ts → 跳过', async () => {

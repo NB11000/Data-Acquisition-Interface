@@ -33,12 +33,12 @@ export function setupRouter(pool: ConnectionPool): () => void {
         const data: DeviceStatusPayload = JSON.parse(new TextDecoder().decode(payload));
         const deviceState = useDeviceStore.getState();
         const device = deviceState.devices.find(d => d.id === machineId);
-        if (!device) return;
 
         if (data.status === 'online') {
+          pool.addOnlineClient(serverId, machineId);
+          if (!device) return;
           if (device.lastTs !== undefined && data.ts <= device.lastTs) return;
           deviceState.setOnline(machineId, true, 'device_online');
-          pool.addOnlineClient(serverId, machineId);
           const mqttState = useMqttStore.getState();
           if (mqttState.willReceived && mqttState.willDeviceId === machineId) {
             mqttState.clearWill();
@@ -47,17 +47,19 @@ export function setupRouter(pool: ConnectionPool): () => void {
         }
 
         if (data.eventType === 'device_offline') {
+          pool.removeOnlineClient(serverId, machineId);
+          if (!device) return;
           if (device.lastTs !== undefined && data.ts <= device.lastTs) return;
           deviceState.setOnline(machineId, false, 'device_offline');
-          pool.removeOnlineClient(serverId, machineId);
           return;
         }
 
         if (data.eventType === 'process_crashed') {
+          pool.removeOnlineClient(serverId, machineId);
+          if (!device) return;
           if (device.lastEventType === 'process_crashed') return;
           deviceState.setOnline(machineId, false, 'process_crashed');
           useMqttStore.getState().setWill(machineId);
-          pool.removeOnlineClient(serverId, machineId);
           return;
         }
       } catch { /* JSON 解析失败，忽略 */ }
