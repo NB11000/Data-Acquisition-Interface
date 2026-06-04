@@ -3,6 +3,7 @@ export interface CommandResult {
   success: boolean;
   code: string;
   message: string;
+  data?: unknown;
   state?: SystemStateDto;
   timestamp: string;
 }

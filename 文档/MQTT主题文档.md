@@ -408,7 +408,7 @@ $rpc/{MachineId}/{方法名}/{关联ID}/response     ← 响应主题（MQTT 5.0
 
 | 字段 | 类型 | 说明 | 取值范围 |
 |------|------|------|----------|
-| `deviceId` | `int` | 设备编号 | 0 |
+| `deviceId` | `int` | 设备编号 | 无 |
 | `syncChannelIndex` | `int` | 同步通道 | 0=通道1, 1=通道2, 2=双通道 |
 | `sampleRate` | `decimal` | 采样频率 (kHz) | 如 1000 |
 | `clockSourceIndex` | `int` | 时钟源 | 0=内时钟, 1=外时钟 |

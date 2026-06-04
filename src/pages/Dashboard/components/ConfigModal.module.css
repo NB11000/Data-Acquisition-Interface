@@ -1,0 +1,23 @@
+.tabContent {
+  min-height: 300px;
+  padding-top: 12px;
+}
+
+.loadingWrap {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 200px;
+}
+
+.errorWrap {
+  padding: 16px 0;
+}
+
+.formFooter {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--app-border-color);
+}

@@ -1,6 +1,11 @@
 import type { CommandResult, SystemStateDto } from '../mqtt/types';
 import type { MqttClientLike } from '../mqtt/mqttClientLike';
 
+const defaultCollectorConfig = {
+  deviceId: 0, syncChannelIndex: 2, sampleRate: 1000, clockSourceIndex: 0,
+  halfFullThreshold: 5, triggerSourceIndex: 1, rangeIndex: 0,
+};
+
 // ── Per-device default state factory (Issue 10) ──
 
 function createDefaultState(): SystemStateDto {
@@ -40,6 +45,7 @@ export function handleMockRpc(
   machineId: string,
   method: string,
   corrId: string,
+  payload?: unknown,
 ): void {
   const responseTopic = `$rpc/${machineId}/${method}/${corrId}/response`;
   const delay = 200 + Math.random() * 300; // 200-500ms
@@ -121,12 +127,73 @@ export function handleMockRpc(
         result = { success: true, code: 'LASER_OFF', message: '激光已关闭', timestamp: new Date().toISOString() };
         break;
 
+      case 'collector-config-read':
+        result = {
+          success: true, code: 'OK', message: '采集卡配置读取成功',
+          data: defaultCollectorConfig,
+          timestamp: new Date().toISOString(),
+        };
+        break;
+
+      case 'collector-config-update':
+        result = { success: true, code: 'OK', message: '采集卡配置更新成功', data: payload, timestamp: new Date().toISOString() };
+        break;
+
+      case 'collector-config-default':
+        result = {
+          success: true, code: 'OK', message: '默认采集卡配置',
+          data: defaultCollectorConfig,
+          timestamp: new Date().toISOString(),
+        };
+        break;
+
+      case 'laser-config-read':
+        result = {
+          success: true, code: 'OK', message: '激光雷达配置读取成功',
+          data: { laserPower: 100, laserModulationFrequency: 1000, serialPort: 'COM3', baudRate: 9600 },
+          timestamp: new Date().toISOString(),
+        };
+        break;
+
+      case 'laser-config-update':
+        result = { success: true, code: 'OK', message: '激光雷达配置更新成功', data: payload, timestamp: new Date().toISOString() };
+        break;
+
+      case 'lidar-config-read':
+        result = {
+          success: true, code: 'OK', message: '激光雷达算法配置读取成功',
+          data: {
+            gainEqualizationCoefficient: 1.0, kConstant: 4.48, receiverApertureD_m: 0.2,
+            pathLengthL_m: 1000.0, cn2WindowFrames: 100, fernaldBoundaryDistance_m: 3000.0,
+            laserWavelength_nm: 532.0, angstromExponent: 1.3, darkCurrentSampleCount: 0,
+            sampleRateHz: 20000000.0, blindZoneDistance_m: 30.0,
+          },
+          timestamp: new Date().toISOString(),
+        };
+        break;
+
+      case 'lidar-config-update':
+        result = { success: true, code: 'OK', message: '激光雷达算法配置更新成功', data: payload, timestamp: new Date().toISOString() };
+        break;
+
+      case 'persistence-config-read':
+        result = {
+          success: true, code: 'OK', message: '持久化配置读取成功',
+          data: { dataDirectory: 'data' },
+          timestamp: new Date().toISOString(),
+        };
+        break;
+
+      case 'persistence-config-update':
+        result = { success: true, code: 'OK', message: '持久化配置更新成功', data: payload, timestamp: new Date().toISOString() };
+        break;
+
       default:
         result = { success: false, code: 'UNKNOWN_METHOD', message: `未知方法: ${method}`, timestamp: new Date().toISOString() };
     }
 
-    const payload = new TextEncoder().encode(JSON.stringify(result));
-    mockClient.injectMessage(responseTopic, payload);
+    const encodedPayload = new TextEncoder().encode(JSON.stringify(result));
+    mockClient.injectMessage(responseTopic, encodedPayload);
 
     // 模拟真实设备行为：RPC 成功后推送 state_changed 事件
     if (result.success && method !== 'system-state') {

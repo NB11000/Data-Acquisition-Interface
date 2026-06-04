@@ -1,10 +1,13 @@
+import { useState } from 'react';
 import { Button, Alert, message } from 'antd';
+import { SettingOutlined } from '@ant-design/icons';
 import { useDeviceStore } from '../../stores/deviceStore';
 import { useCollectorStore } from '../../stores/collectorStore';
 import { useLaserStore } from '../../stores/laserStore';
 import { useMqttStore } from '../../stores/mqttStore';
 import { useRpcCommand } from '../../hooks/useRpcCommand';
 import { Clock } from '../../components/Clock';
+import { ConfigModal } from './components/ConfigModal';
 import { MqttStatusIndicator } from '../../components/MqttStatusIndicator';
 import styles from './StatusControlBar.module.css';
 
@@ -38,6 +41,8 @@ export function StatusControlBar() {
 
   const allDisabled = !mqttConnected || willReceived || !selectedId || !selectedDevice || !processConnected;
 
+  const [configModalOpen, setConfigModalOpen] = useState(false);
+
   // 采集卡: 采集中禁用
   const collectorDisabled = allDisabled || acquiring;
   // 采集: 采集卡未打开时禁用
@@ -69,6 +74,7 @@ export function StatusControlBar() {
   };
 
   return (
+    <>
     <div className={styles.container}>
       <div className={styles.row1}>
         <div className={styles.deviceInfo}>
@@ -159,6 +165,17 @@ export function StatusControlBar() {
             {laserButtonPhase === 'sending' ? '发送中...' : emissionOn ? '关闭激光' : '开启激光'}
           </Button>
         </div>
+
+        <div className={styles.group}>
+          <Button
+            size="small"
+            icon={<SettingOutlined />}
+            disabled={allDisabled}
+            onClick={() => setConfigModalOpen(true)}
+          >
+            设置参数
+          </Button>
+        </div>
       </div>
 
       {willReceived && (
@@ -182,5 +199,7 @@ export function StatusControlBar() {
         </div>
       )}
     </div>
+    <ConfigModal open={configModalOpen} onClose={() => setConfigModalOpen(false)} />
+    </>
   );
 }
