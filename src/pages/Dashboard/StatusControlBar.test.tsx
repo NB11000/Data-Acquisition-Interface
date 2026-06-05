@@ -160,12 +160,12 @@ describe('StatusControlBar — 设置参数按钮', () => {
     expect(btn).toBeDisabled();
   });
 
-  it('processConnected 为 false 时按钮 disabled', () => {
+  it('processConnected 为 false 时按钮不因此 disabled', () => {
     setNormalState();
     collectorStoreState.processConnected = false;
     render(<StatusControlBar />);
     const btn = screen.getByRole('button', { name: /设置参数/ });
-    expect(btn).toBeDisabled();
+    expect(btn).not.toBeDisabled();
   });
 
   it('点击按钮弹出 ConfigModal，标题为"设备参数配置"', async () => {

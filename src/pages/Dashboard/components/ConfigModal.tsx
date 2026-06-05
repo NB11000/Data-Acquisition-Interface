@@ -140,7 +140,7 @@ export function ConfigModal({ open, onClose }: ConfigModalProps) {
       const values = await form.validateFields();
       setSaving(prev => ({ ...prev, [key]: true }));
       const result = await sendCommand(updateMethods[key], values as object);
-      if (result.success) {
+      if (result.success || result.success === undefined) {
         message.success('保存成功');
       } else {
         message.error(result.message || '保存失败');
@@ -166,8 +166,11 @@ export function ConfigModal({ open, onClose }: ConfigModalProps) {
     setLoadStates(prev => ({ ...prev, [key]: 'loading' }));
     try {
       const result: CommandResult = await sendCommand(configMethods[key]);
-      if (result.success && result.data) {
-        formMap[key].setFieldsValue(result.data as Record<string, unknown>);
+      if (result.success) {
+        formMap[key].setFieldsValue((result.data ?? result) as Record<string, unknown>);
+        setLoadStates(prev => ({ ...prev, [key]: 'idle' }));
+      } else if (result.success === undefined) {
+        formMap[key].setFieldsValue(result as unknown as Record<string, unknown>);
         setLoadStates(prev => ({ ...prev, [key]: 'idle' }));
       } else {
         setLoadStates(prev => ({ ...prev, [key]: 'error' }));

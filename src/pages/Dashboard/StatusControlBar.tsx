@@ -39,7 +39,7 @@ export function StatusControlBar() {
 
   const { sendCommand } = useRpcCommand();
 
-  const allDisabled = !mqttConnected || willReceived || !selectedId || !selectedDevice || !processConnected;
+  const allDisabled = !mqttConnected || willReceived || !selectedId || !selectedDevice;
 
   const [configModalOpen, setConfigModalOpen] = useState(false);
 

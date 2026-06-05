@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { ConnectionPool } from '../mqtt/connectionPool';
 import { getPool } from '../mqtt/pool';
 import { setupRouter } from '../mqtt/router';
@@ -12,6 +12,7 @@ import { useDataStore } from '../stores/dataStore';
 import { useAlarmStore } from '../stores/alarmStore';
 import { useServerStore, type PoolConnectionState as ConnectionState } from '../stores/serverStore';
 import { useMockGenerators } from './useMockGenerators';
+import { setBridgeCallback, triggerSystemStateUpdate } from './systemStateBridge';
 
 /** 发送 system-state RPC，失败 3 秒后重试一次 */
 function sendStateRpcWithRetry(pool: ConnectionPool, machineId: string) {
@@ -24,6 +25,7 @@ function sendStateRpcWithRetry(pool: ConnectionPool, machineId: string) {
       const s = state as Record<string, unknown>;
       if (s.collector) useCollectorStore.getState().applyState(s.collector as never);
       if (s.laser) useLaserStore.getState().applyState(s.laser as never);
+      triggerSystemStateUpdate(state as Record<string, unknown>);
     }
   };
 
@@ -63,6 +65,40 @@ export function useMqttConnect(): void {
   const prevSelectedRef = useRef<string | null>(null);
   const cancelStateRpcRef = useRef<(() => void) | null>(null);
 
+  // 当前选中设备的在线状态
+  const selectedDeviceForOnline = useDeviceStore((s) =>
+    s.selectedId ? s.devices.find(d => d.id === s.selectedId) ?? null : null
+  );
+  const isOnline = selectedDeviceForOnline?.isOnline ?? null;
+
+  // selectedId 变化时重置 prevOnlineRef
+  const prevOnlineRef = useRef<boolean | null>(null);
+  useEffect(() => {
+    prevOnlineRef.current = null;
+  }, [selectedId]);
+
+  // ── 桥接：MQTT 回调 → React setState → useEffect 更新 Zustand ──
+  const [sysStateVersion, setSysStateVersion] = useState(0);
+  const pendingSysStateRef = useRef<Record<string, unknown> | null>(null);
+
+  useEffect(() => {
+    setBridgeCallback((state) => {
+      pendingSysStateRef.current = state;
+      setSysStateVersion((v) => v + 1);
+    });
+    return () => {
+      setBridgeCallback(null);
+    };
+  }, []);
+
+  useEffect(() => {
+    const s = pendingSysStateRef.current;
+    if (!s) return;
+    pendingSysStateRef.current = null;
+    if (s.collector) useCollectorStore.getState().applyState(s.collector as never);
+    if (s.laser) useLaserStore.getState().applyState(s.laser as never);
+  }, [sysStateVersion]);
+
   // Mock 模式：启动 $SYS 注入 + 波形/低频生成器
   useMockGenerators();
 
@@ -94,6 +130,7 @@ export function useMqttConnect(): void {
         if (!currentId) return;
         const device = useDeviceStore.getState().devices.find((d) => d.id === currentId);
         if (!device || device.serverId !== serverId) return;
+        if (!device.isOnline) return;
 
         pool.subscribeDevice(serverId, currentId);
         pool.switchFollowing(serverId, null, currentId);
@@ -116,6 +153,7 @@ export function useMqttConnect(): void {
     if (currentId && !cancelStateRpcRef.current) {
       const device = useDeviceStore.getState().devices.find((d) => d.id === currentId);
       if (device && pool.isConnected(device.serverId)) {
+        if (!device.isOnline) return;
         pool.subscribeDevice(device.serverId, currentId);
         pool.switchFollowing(device.serverId, null, currentId);
         cancelStateRpcRef.current = sendStateRpcWithRetry(pool, currentId);
@@ -169,10 +207,36 @@ export function useMqttConnect(): void {
       pool.switchFollowing(device.serverId, null, selectedId);
     }
 
+    // 设备不在线则跳过 RPC（stores 清空和主题订阅照常执行）
+    if (!device.isOnline) {
+      prevSelectedRef.current = selectedId;
+      return;
+    }
+
     // 请求设备状态（含重试）
     cancelStateRpcRef.current?.();
     cancelStateRpcRef.current = sendStateRpcWithRetry(pool, selectedId);
 
     prevSelectedRef.current = selectedId;
   }, [selectedId]);
+
+  // ── 设备上线后补发 RPC（isOnline 从非 true 变为 true） ──
+  useEffect(() => {
+    const prevOnline = prevOnlineRef.current;
+    prevOnlineRef.current = isOnline;
+
+    if (!prevOnline && isOnline === true) {
+      const currentId = useDeviceStore.getState().selectedId;
+      if (!currentId) return;
+
+      const pool = getPool();
+
+      if (cancelStateRpcRef.current) {
+        cancelStateRpcRef.current();
+        cancelStateRpcRef.current = null;
+      }
+
+      cancelStateRpcRef.current = sendStateRpcWithRetry(pool, currentId);
+    }
+  }, [isOnline, selectedId]);
 }

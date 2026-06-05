@@ -8,6 +8,7 @@ import { useAlarmStore } from '../stores/alarmStore';
 import { useWaveformStore } from '../stores/waveformStore';
 import { useDataStore } from '../stores/dataStore';
 import { useDeviceStore } from '../stores/deviceStore';
+import { triggerSystemStateUpdate } from '../hooks/systemStateBridge';
 import type { StateChangedEvent, DeviceAlarm, LowFreqSample, DeviceStatusPayload } from './types';
 
 function extractMachineId(topic: string): string {
@@ -75,6 +76,7 @@ export function setupRouter(pool: ConnectionPool): () => void {
         if (event.state?.laser) {
           useLaserStore.getState().applyState(event.state.laser);
         }
+        triggerSystemStateUpdate(event.state as unknown as Record<string, unknown>);
         const mqttState = useMqttStore.getState();
         if (mqttState.willReceived) {
           mqttState.clearWill();
